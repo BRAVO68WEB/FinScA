@@ -4,11 +4,19 @@ from pathlib import Path
 
 from finsca.core.enums import SourceKind
 
+_HEADER_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("axis", ("STATEMENT OF AXIS ACCOUNT", "AXIS BANK LTD", "IFSC CODE: UTIB")),
+    ("icici", ("ICICI BANK LIMITED", "WWW.ICICI.BANK")),
+    ("idfc", ("IDFC FIRST BANK", "IDFB00")),
+    ("hdfc", ("HDFC BANK",)),
+    ("sbi", ("STATE BANK OF INDIA",)),
+)
 _BANK_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("hdfc", ("HDFC BANK", "HDFC Bank")),
-    ("icici", ("ICICI BANK", "ICICI Bank")),
+    ("idfc", ("IDFC FIRST", "IDFC FIRST BANK", "IDFCFIRST")),
     ("sbi", ("STATE BANK OF INDIA", "SBI ")),
-    ("axis", ("AXIS BANK", "Axis Bank")),
+    ("axis", ("AXIS BANK", "Axis Bank", "Axis Account")),
+    ("icici", ("ICICI BANK", "ICICI Bank")),
 )
 
 _INBOX: tuple[tuple[str, SourceKind, frozenset[str]], ...] = (
@@ -37,6 +45,10 @@ def list_inbox_files(inbox_dir: Path) -> list[tuple[Path, SourceKind]]:
 
 
 def detect_bank(text: str) -> str | None:
+    head = text[:3000].upper()
+    for bank_id, markers in _HEADER_MARKERS:
+        if any(marker in head for marker in markers):
+            return bank_id
     upper = text.upper()
     for bank_id, markers in _BANK_MARKERS:
         if any(marker.upper() in upper for marker in markers):

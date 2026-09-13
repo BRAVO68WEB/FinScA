@@ -20,6 +20,9 @@ finsca accounts list
 finsca accounts set-month 4521 --month 2026-08 --opening 10000 --closing 12500.50
 # drop a statement into data/inbox/pdf/ then:
 finsca ingest
+finsca review link
+finsca review list
+finsca review apply <id> income --category salary --always --match "V2V CYBERSECURITY"
 pytest
 ```
 

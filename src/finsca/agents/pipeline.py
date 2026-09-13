@@ -12,6 +12,8 @@ from finsca.db.repositories import ingest_runs
 from finsca.ingest.detect import list_inbox_files
 from finsca.ingest.dispatch import parse_inbox_file
 from finsca.ingest.errors import ParseError
+from finsca.db.repositories import transactions as tx_repo
+from finsca.ledger.apply import apply_rules, link_self_transfers
 from finsca.ingest.persist import persist_batch
 from finsca.ingest.types import IngestFileResult, IngestSummary
 
@@ -31,7 +33,11 @@ def run_ingest(session: Session, settings: Settings) -> IngestSummary:
     archive_path = planned_archive_dir(settings.archive_dir, run.id) if successes else None
     parsed = sum(item.tx_count for item in successes)
     dupes = sum(item.dupe_count for item in successes)
-    pending = sum(item.pending_review for item in successes)
+    linked = 0
+    if successes:
+        linked = link_self_transfers(session, window_hours=settings.self_transfer_window_hours)
+        apply_rules(session)
+    pending = len(tx_repo.list_pending_review(session))
     status = _status(successes, failures)
     error = failures[0].error if failures and not successes else None
     ingest_runs.finish(
@@ -43,6 +49,7 @@ def run_ingest(session: Session, settings: Settings) -> IngestSummary:
         pending_review_count=pending,
         archive_path=archive_path,
         error=error,
+        self_transfer_count=linked,
     )
     for item in results:
         ingest_runs.add_file(session, run.id, item)

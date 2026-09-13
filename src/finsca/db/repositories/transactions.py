@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from finsca.core.enums import SourceKind
+from finsca.core.enums import Category, IncomeReview, Intent, LabelSource, SourceKind
 from finsca.core.ids import new_id
 from finsca.core.models import Transaction
 from finsca.core.money import to_paise
@@ -88,6 +88,59 @@ def enrich_source(session: Session, existing: Transaction, source_kind: SourceKi
     if tag not in seen:
         row.source_ref = ";".join([*seen, tag])
         session.flush()
+    return transaction_from_row(row)
+
+
+def list_all(session: Session) -> list[Transaction]:
+    rows = session.scalars(select(tables.Transaction).order_by(tables.Transaction.posted_at)).all()
+    return [transaction_from_row(row) for row in rows]
+
+
+def list_pending_review(session: Session) -> list[Transaction]:
+    rows = session.scalars(
+        select(tables.Transaction)
+        .where(
+            tables.Transaction.income_review == IncomeReview.PENDING.value,
+            tables.Transaction.amount_paise > 0,
+        )
+        .order_by(tables.Transaction.posted_at)
+    ).all()
+    return [transaction_from_row(row) for row in rows]
+
+
+def mark_self_transfer(session: Session, debit_id: str, credit_id: str, group_id: str) -> bool:
+    debit = session.get(tables.Transaction, debit_id)
+    credit = session.get(tables.Transaction, credit_id)
+    if debit is None or credit is None:
+        return False
+    for row in (debit, credit):
+        row.intent = Intent.SELF_TRANSFER.value
+        row.exclude_from_cashflow = True
+        row.self_transfer_group_id = group_id
+        row.income_review = IncomeReview.SKIPPED.value
+    session.flush()
+    return True
+
+
+def apply_review(
+    session: Session,
+    tx_id: str,
+    *,
+    intent: Intent,
+    income_review: IncomeReview,
+    exclude_from_cashflow: bool,
+    category: Category | None = None,
+) -> Transaction:
+    row = session.get(tables.Transaction, tx_id)
+    if row is None:
+        raise KeyError(tx_id)
+    row.intent = intent.value
+    row.income_review = income_review.value
+    row.exclude_from_cashflow = exclude_from_cashflow
+    if category is not None:
+        row.category = category.value
+        row.label_source = LabelSource.MANUAL.value
+    session.flush()
     return transaction_from_row(row)
 
 

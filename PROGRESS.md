@@ -3,8 +3,8 @@
 Living tracker. The design stays in [PLAN.md](PLAN.md). Update this file when a phase starts, lands, or is blocked.
 
 **Last updated:** 2026-09-13  
-**Current phase:** 4 — Self-transfer + review queue (not started)  
-**Last completed:** Phase 3 — SMS + email files
+**Current phase:** 5 — Labeling (not started)  
+**Last completed:** Phase 4 — Self-transfer + review queue
 
 ---
 
@@ -16,7 +16,7 @@ Living tracker. The design stays in [PLAN.md](PLAN.md). Update this file when a 
 | 1 | Ledger core | **done** |
 | 2 | PDF ingest + archive | **done** |
 | 3 | SMS + email files | **done** |
-| 4 | Self-transfer + review queue | not started |
+| 4 | Self-transfer + review queue | **done** |
 | 5 | Labeling | not started |
 | 6 | Loans / EMI | not started |
 | 7 | Report | not started |
@@ -125,21 +125,42 @@ Branch: `phase-3-sms-email`
 
 ---
 
-## Phase 4 — Self-transfer + review queue (next)
+## Phase 4 — Self-transfer + review queue
 
-**Exit:** own-account hop does not inflate income; user can mark a credit.
+**Exit:** own-account hop does not inflate income; user can mark a credit. **Met.**
+
+Shipped:
+
+- [x] Pure `find_pairs` (amount, opposite sign, own accounts, 72h, UPI ref / last4)
+- [x] `finsca review link` applies pairs on the ledger
+- [x] `finsca review list` / `apply income|transfer|skip`
+- [x] `--always --match` writes a description rule
+- [x] Ingest runs link + rules before counting pending
+
+Verified:
+
+- `pytest` — 52 passed
+- On the 3-bank ledger: 9 self-transfers linked, 50 credits left to mark
+
+Branch: `phase-4-self-transfer`
+
+---
+
+## Phase 5 — Labeling (next)
+
+**Exit:** `finsca label --remember` and compact auto-label.
 
 Still to do:
 
-- [ ] `finance/self_transfer.py` matcher
-- [ ] `finsca review` income vs transfer
-- [ ] Rule writer from review answers
+- [ ] YAML taxonomy + rule engine on expenses
+- [ ] Compact-model labeler
+- [ ] `finsca label ID CATEGORY --remember`
 
 ---
 
 ## Later phases
 
-Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 5 until Phase 4’s exit works.
+Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 6 until Phase 5’s exit works.
 
 ---
 
@@ -156,3 +177,6 @@ Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 5 
 - Phase 2 review: commit then archive, savepoint per file, require last4, header vs line parse, drop unused subagent wrappers.
 - Implemented Phase 3 on `phase-3-sms-email`: SMS/email ingest + cross-source dedupe.
 - Phase 3 review: one event_key (account+date+paise), AlertRecord pipeline, persist months only with balances, loaders raise ParseError.
+- Implemented Phase 4 on `phase-4-self-transfer`.
+- Phase 4 review: pair only on ref / last4-alias-VPA / unique candidate; review decisions in apply.py; rules return a DTO.
+- Residual review: no unsigned unique-candidate pairs; word-boundary last4; apply I/O moved to ledger/; --always requires --match.
