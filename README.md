@@ -32,6 +32,8 @@ finsca report --html
 # put OAuth desktop client JSON at data/gmail_credentials.json
 finsca gmail login
 finsca gmail pull --months 6
+# locked CC/bank PDFs:
+finsca passwords add 01011990 --match hdfc
 finsca ingest
 pytest
 ```

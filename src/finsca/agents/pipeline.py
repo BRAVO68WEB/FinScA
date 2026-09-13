@@ -27,7 +27,7 @@ def run_ingest(session: Session, settings: Settings) -> IngestSummary:
 
     run = ingest_runs.start(session)
     results = [
-        _ingest_one(session, path, kind, run.id, settings.inbox_dir) for path, kind in incoming
+        _ingest_one(session, path, kind, run.id, settings) for path, kind in incoming
     ]
     successes = [item for item in results if item.error is None]
     failures = [item for item in results if item.error is not None]
@@ -80,13 +80,13 @@ def _ingest_one(
     path: Path,
     kind: SourceKind,
     run_id: str,
-    inbox_dir: Path,
+    settings,
 ) -> IngestFileResult:
     digest = file_sha256(path)
-    relpath = _relpath(path, inbox_dir)
+    relpath = _relpath(path, settings.inbox_dir)
     try:
         with session.begin_nested():
-            batch = parse_inbox_file(path, kind)
+            batch = parse_inbox_file(path, kind, settings)
             persisted = persist_batch(session, batch, run_id)
         warning = "; ".join(batch.warnings) if batch.warnings else None
         return IngestFileResult(

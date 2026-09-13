@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     llm_off: bool = False
     gmail_query: str | None = None
     gmail_months: int = 1
+    pdf_password: str | None = None
 
     @property
     def inbox_dir(self) -> Path:
