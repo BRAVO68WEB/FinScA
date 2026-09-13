@@ -3,8 +3,8 @@
 Living tracker. The design stays in [PLAN.md](PLAN.md). Update this file when a phase starts, lands, or is blocked.
 
 **Last updated:** 2026-09-13  
-**Current phase:** 6 — Loans / EMI (not started)  
-**Last completed:** Phase 5 — Labeling
+**Current phase:** 7 — Report (not started)  
+**Last completed:** Phase 6 — Loans / EMI
 
 ---
 
@@ -18,7 +18,7 @@ Living tracker. The design stays in [PLAN.md](PLAN.md). Update this file when a 
 | 3 | SMS + email files | **done** |
 | 4 | Self-transfer + review queue | **done** |
 | 5 | Labeling | **done** |
-| 6 | Loans / EMI | not started |
+| 6 | Loans / EMI | **done** |
 | 7 | Report | not started |
 | 8 | LLM router + ask | not started |
 | 9 | Extra bank parsers + polish | not started |
@@ -167,20 +167,41 @@ Branch: `phase-5-labeling`
 
 ---
 
-## Phase 6 — Loans / EMI (next)
+## Phase 6 — Loans / EMI
 
-**Exit:** `finsca loans` tracks an EMI and matches a debit.
+**Exit:** `finsca loans` tracks an EMI and matches a debit. **Met.**
+
+Shipped:
+
+- [x] Loan + EmiOccurrence DTOs and repository
+- [x] Pure match predicates (`amount`, `day`, EMI/NACH/lender)
+- [x] `finsca loans add|list|match|close`
+- [x] Ingest rematches active loans after labeling
+
+Verified:
+
+- `pytest` — 64 passed
+- Add loan against an existing NACH debit → occurrence `paid`, tx intent `emi`
+
+Branch: `phase-6-loans`
+
+---
+
+## Phase 7 — Report (next)
+
+**Exit:** monthly cash-flow, habits, DC/CC/UPI, salary, GST, health, graphs.
 
 Still to do:
 
-- [ ] Loan entity + CLI add/list
-- [ ] Recurring EMI matcher
+- [ ] Cash flow + habits + channel mix
+- [ ] Salary cycle, GST %, health score
+- [ ] `finsca report --month` + plotext / HTML
 
 ---
 
 ## Later phases
 
-Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 7 until Phase 6’s exit works.
+Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 8 until Phase 7’s exit works.
 
 ---
 
@@ -202,3 +223,5 @@ Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 7 
 - Residual review: no unsigned unique-candidate pairs; word-boundary last4; apply I/O moved to ledger/; --always requires --match.
 - Merged Phase 4. Implemented Phase 5 on `phase-5-labeling`.
 - Phase 5 review: MerchantHint in finance/, decide()+TAXONOMY source, compact_complete hook, compact leftovers in 25s.
+- Merged Phase 5. Implemented Phase 6 on `phase-6-loans`.
+- Phase 6 review: EMI/NACH signal required, upsert by loan+month, label_source=taxonomy.

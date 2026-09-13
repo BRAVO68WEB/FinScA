@@ -10,10 +10,12 @@ from finsca.core.enums import (
     AccountType,
     Category,
     Channel,
+    EmiStatus,
     GstSource,
     IncomeReview,
     Intent,
     LabelSource,
+    LoanStatus,
     MonthSource,
     SourceKind,
 )
@@ -92,3 +94,26 @@ class Transaction(BaseModel):
     income_review: IncomeReview = IncomeReview.PENDING
     id: str | None = None
     content_hash: str | None = None
+
+
+class Loan(BaseModel):
+    name: str
+    lender: str
+    principal: Decimal
+    emi: Decimal
+    emi_day: int | None = Field(default=None, ge=1, le=31)
+    tenure_months: int | None = Field(default=None, ge=1)
+    rate_bps: int | None = None
+    start_date: datetime | None = None
+    status: LoanStatus = LoanStatus.ACTIVE
+    account_id: str | None = None
+    id: str | None = None
+
+
+class EmiOccurrence(BaseModel):
+    loan_id: str
+    due_date: datetime
+    expected: Decimal
+    status: EmiStatus = EmiStatus.DUE
+    transaction_id: str | None = None
+    id: str | None = None
