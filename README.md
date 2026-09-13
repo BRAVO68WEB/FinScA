@@ -31,7 +31,7 @@ finsca report --html
 # Gmail (readonly): pip install -e '.[gmail]'
 # put OAuth desktop client JSON at data/gmail_credentials.json
 finsca gmail login
-finsca gmail pull --months 6
+finsca gmail pull --months 6          # retries on quota; skips already-pulled ids
 # locked CC/bank PDFs:
 finsca passwords add 01011990 --match hdfc
 finsca ingest

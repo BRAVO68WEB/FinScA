@@ -53,5 +53,7 @@ def pull_cmd(
         console.print("[red]Gmail extra not installed. pip install -e '.[gmail]'[/red]")
         raise typer.Exit(code=1) from exc
     console.print(f"query   {built}")
-    console.print(f"pulled  emails={result.emails}  pdfs={result.pdfs}  → {settings.inbox_dir}")
+    console.print(
+        f"pulled  emails={result.emails}  pdfs={result.pdfs}  skipped={result.skipped}  → {settings.inbox_dir}"
+    )
     console.print("run  finsca ingest")

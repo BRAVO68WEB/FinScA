@@ -14,10 +14,17 @@ _SAFE = re.compile(r"[^A-Za-z0-9._-]+")
 
 
 @dataclass(frozen=True)
+class AttachmentRef:
+    filename: str
+    data: bytes | None
+    attachment_id: str | None
+
+
+@dataclass(frozen=True)
 class GmailPull:
     record: AlertRecord
     message_id: str
-    attachments: tuple[tuple[str, bytes], ...]
+    attachments: tuple[AttachmentRef, ...]
 
 
 def decode_gmail_message(payload: dict) -> GmailPull:
@@ -69,15 +76,29 @@ def _plain_text(part: dict) -> str:
     return ""
 
 
-def _attachments(part: dict) -> list[tuple[str, bytes]]:
-    found: list[tuple[str, bytes]] = []
-    filename = part.get("filename") or ""
-    data = part.get("body", {}).get("data")
-    if filename.lower().endswith(".pdf") and data:
-        found.append((filename, base64.urlsafe_b64decode(data + "==")))
+def _attachments(part: dict) -> list[AttachmentRef]:
+    found: list[AttachmentRef] = []
+    if _is_pdf_part(part):
+        body = part.get("body") or {}
+        data = body.get("data")
+        found.append(
+            AttachmentRef(
+                filename=part.get("filename") or "statement.pdf",
+                data=base64.urlsafe_b64decode(data + "==") if data else None,
+                attachment_id=body.get("attachmentId"),
+            )
+        )
     for child in part.get("parts") or []:
         found.extend(_attachments(child))
     return found
+
+
+def _is_pdf_part(part: dict) -> bool:
+    name = (part.get("filename") or "").lower()
+    mime = (part.get("mimeType") or "").lower()
+    if name.endswith(".pdf") or mime == "application/pdf":
+        return True
+    return mime == "application/octet-stream" and name.endswith(".pdf")
 
 
 def _b64(data: str) -> str:

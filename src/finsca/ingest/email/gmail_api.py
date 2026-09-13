@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import re
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
 from finsca.config.settings import Settings
-from finsca.ingest.email.gmail_decode import decode_gmail_message, safe_stem
+from finsca.ingest.email.gmail_decode import AttachmentRef, decode_gmail_message, safe_stem
 
 SCOPE = ("https://www.googleapis.com/auth/gmail.readonly",)
 BANK_FILTER = (
@@ -16,12 +18,15 @@ BANK_FILTER = (
     "OR google.com OR paytm.com)"
     " OR subject:(debited OR credited OR spent OR EMI OR statement OR OTP)"
 )
+_PACE_SECONDS = 0.4
+_RETRY_ATTEMPTS = 8
 
 
 @dataclass(frozen=True)
 class GmailPullResult:
     emails: int
     pdfs: int
+    skipped: int
 
 
 def credentials_path(settings: Settings) -> Path:
@@ -30,6 +35,10 @@ def credentials_path(settings: Settings) -> Path:
 
 def token_path(settings: Settings) -> Path:
     return settings.data_dir / "gmail_token.json"
+
+
+def seen_path(settings: Settings) -> Path:
+    return settings.data_dir / "gmail_seen.json"
 
 
 def login(settings: Settings) -> Path:
@@ -72,19 +81,94 @@ def pull(
     q = search_query(months=months, extra=query or settings.gmail_query)
     ids = _list_ids(service, q, max_results)
     settings.ensure_dirs()
-    emails = pdfs = 0
+    seen = load_seen(settings)
+    emails = pdfs = skipped = 0
     for message_id in ids:
-        raw = service.users().messages().get(userId="me", id=message_id, format="full").execute()
+        if _already_pulled(message_id, seen):
+            skipped += 1
+            continue
+        raw = _execute(service.users().messages().get(userId="me", id=message_id, format="full"))
         pulled = decode_gmail_message(raw)
         stem = safe_stem(pulled.message_id, pulled.record.address)
         eml = settings.inbox_dir / "email" / f"{stem}.eml"
         eml.write_text(_as_eml(pulled.record), encoding="utf-8")
         emails += 1
-        for name, blob in pulled.attachments:
-            dest = settings.inbox_dir / "pdf" / f"{stem}_{Path(name).name}"
+        for ref in pulled.attachments:
+            blob = _attachment_bytes(service, message_id, ref)
+            if blob is None:
+                continue
+            dest = settings.inbox_dir / "pdf" / f"{stem}_{Path(ref.filename).name}"
             dest.write_bytes(blob)
             pdfs += 1
-    return GmailPullResult(emails=emails, pdfs=pdfs)
+        seen.add(message_id)
+        save_seen(settings, seen)
+    return GmailPullResult(emails=emails, pdfs=pdfs, skipped=skipped)
+
+
+def load_seen(settings: Settings) -> set[str]:
+    dest = seen_path(settings)
+    ids: set[str] = set()
+    if dest.exists():
+        payload = json.loads(dest.read_text(encoding="utf-8"))
+        ids.update(payload.get("ids", []))
+    for folder in (settings.inbox_dir / "email", settings.archive_dir):
+        if not folder.exists():
+            continue
+        for path in folder.rglob("*.eml"):
+            prefix = path.name.split("_", 1)[0]
+            if len(prefix) >= 8:
+                ids.add(prefix)
+    return ids
+
+
+def _already_pulled(message_id: str, seen: set[str]) -> bool:
+    return message_id in seen or message_id[:12] in seen
+
+
+def save_seen(settings: Settings, ids: set[str]) -> None:
+    seen_path(settings).write_text(json.dumps({"ids": sorted(ids)}, indent=2), encoding="utf-8")
+
+
+def _attachment_bytes(service, message_id: str, ref: AttachmentRef) -> bytes | None:
+    if ref.data:
+        return ref.data
+    if not ref.attachment_id:
+        return None
+    raw = _execute(
+        service.users()
+        .messages()
+        .attachments()
+        .get(userId="me", messageId=message_id, id=ref.attachment_id)
+    )
+    data = raw.get("data")
+    if not data:
+        return None
+    import base64
+
+    return base64.urlsafe_b64decode(data + "==")
+
+
+def _execute(request, *, attempts: int = _RETRY_ATTEMPTS):
+    delay = 1.0
+    last: Exception | None = None
+    for attempt in range(attempts):
+        try:
+            result = request.execute()
+            time.sleep(_PACE_SECONDS)
+            return result
+        except Exception as exc:
+            last = exc
+            if not _is_rate_limit(exc) or attempt == attempts - 1:
+                raise
+            time.sleep(delay)
+            delay = min(delay * 2, 60)
+    raise last or RuntimeError("gmail request failed")
+
+
+def _is_rate_limit(exc: BaseException) -> bool:
+    code = getattr(getattr(exc, "resp", None), "status", None)
+    text = str(exc).lower()
+    return code in {403, 429} and any(token in text for token in ("ratelimit", "rate limit", "quota", "usagelimits"))
 
 
 def _service(settings: Settings):
@@ -106,11 +190,10 @@ def _list_ids(service, query: str, max_results: int) -> list[str]:
     ids: list[str] = []
     token = None
     while len(ids) < max_results:
-        page = (
+        page = _execute(
             service.users()
             .messages()
             .list(userId="me", q=query, pageToken=token, maxResults=min(100, max_results - len(ids)))
-            .execute()
         )
         ids.extend(item["id"] for item in page.get("messages") or [])
         token = page.get("nextPageToken")

@@ -52,4 +52,28 @@ def test_decode_nested_parts_and_pdf_attachment() -> None:
     pulled = decode_gmail_message(payload)
     assert "12500" in pulled.record.body
     assert len(pulled.attachments) == 1
-    assert pulled.attachments[0][0] == "statement.pdf"
+    assert pulled.attachments[0].filename == "statement.pdf"
+    assert pulled.attachments[0].data is not None
+    assert pulled.attachments[0].attachment_id is None
+
+
+def test_decode_pdf_attachment_id_without_inline_bytes() -> None:
+    payload = {
+        "id": "att2",
+        "payload": {
+            "mimeType": "multipart/mixed",
+            "headers": [{"name": "From", "value": "alerts@hdfcbank.net"}],
+            "parts": [
+                {
+                    "filename": "CC_Statement.pdf",
+                    "mimeType": "application/pdf",
+                    "body": {"attachmentId": "ANGjdJxxx", "size": 12000},
+                }
+            ],
+        },
+    }
+    pulled = decode_gmail_message(payload)
+    assert len(pulled.attachments) == 1
+    assert pulled.attachments[0].data is None
+    assert pulled.attachments[0].attachment_id == "ANGjdJxxx"
+    assert pulled.attachments[0].filename == "CC_Statement.pdf"
