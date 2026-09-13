@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import typer
 
-from finsca.cli.commands import accounts, ask, config_cmd, ingest, label, loans, report, review
+from finsca.cli.commands import accounts, ask, bills, config_cmd, ingest, label, loans, report, review
 from finsca.cli.status import print_status
 
 app = typer.Typer(
@@ -25,6 +25,7 @@ app.add_typer(review.app, name="review")
 app.add_typer(label.app, name="label")
 app.add_typer(accounts.app, name="accounts")
 app.add_typer(loans.app, name="loans")
+app.add_typer(bills.app, name="bills")
 app.add_typer(report.app, name="report")
 app.add_typer(ask.app, name="ask")
 app.add_typer(config_cmd.app, name="config")

@@ -15,6 +15,7 @@ from finsca.ingest.errors import ParseError
 from finsca.db.repositories import transactions as tx_repo
 from finsca.ledger.apply import apply_rules, link_self_transfers
 from finsca.ledger.labeling import apply_labels
+from finsca.ledger.bills import inject_cc_bills
 from finsca.ledger.loans import match_all
 from finsca.ingest.persist import persist_batch
 from finsca.ingest.types import IngestFileResult, IngestSummary
@@ -41,6 +42,7 @@ def run_ingest(session: Session, settings: Settings) -> IngestSummary:
         apply_rules(session)
         apply_labels(session, settings)
         match_all(session)
+        inject_cc_bills(session)
     pending = len(tx_repo.list_pending_review(session))
     status = _status(successes, failures)
     error = failures[0].error if failures and not successes else None
