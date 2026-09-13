@@ -28,6 +28,11 @@ finsca label set <id> dining --remember --match SWIGGY
 finsca loans add --name "HDFC Home" --lender HDFC --emi 18420 --day 5 --principal 2500000 --account 4521 --start 2026-04-01
 finsca report --month 2026-08
 finsca report --html
+# Gmail (readonly): pip install -e '.[gmail]'
+# put OAuth desktop client JSON at data/gmail_credentials.json
+finsca gmail login
+finsca gmail pull
+finsca ingest
 pytest
 ```
 

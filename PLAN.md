@@ -312,7 +312,7 @@ data/inbox/sms/*.{xml,csv,json}
 
 PDF parsers must extract **statement period + opening + closing** when the bank prints them. That is how `AccountMonth` stays honest.
 
-Gmail v1 is **offline files**. `ingest/email/gmail_api.py` exists as a sealed module (OAuth readonly) and is not wired until v1.1 so the first report does not depend on Google Cloud setup.
+Gmail is **readonly OAuth**. `finsca gmail login` + `finsca gmail pull` write `.eml` (and PDF attachments) into the inbox; `finsca ingest` is unchanged. Requires `pip install -e '.[gmail]'` and a desktop OAuth client JSON at `data/gmail_credentials.json`.
 
 ### 6.2 Accounts + monthly open/close
 

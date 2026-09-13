@@ -27,6 +27,11 @@ dev = [
     "pytest-cov>=5.0",
     "fpdf2>=2.8",
 ]
+gmail = [
+    "google-api-python-client>=2.140",
+    "google-auth-oauthlib>=1.2",
+    "google-auth-httplib2>=0.2",
+]
 
 [project.scripts]
 finsca = "finsca.cli.app:app"

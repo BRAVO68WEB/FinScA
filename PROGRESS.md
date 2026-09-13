@@ -246,3 +246,4 @@ Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 9 
 - Phase 6 review: EMI/NACH signal required, upsert by loan+month, label_source=taxonomy.
 - Merged Phase 6. Implemented Phase 7 on `phase-7-report`.
 - Phase 7 review: outflow is labeled intents only; health score keys; monthly missed EMI; is_spend in cashflow.py.
+- Gmail API (readonly): `finsca gmail login|pull` writes .eml/PDF into the inbox.

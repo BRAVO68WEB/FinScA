@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     label_min_confidence: float = 0.7
     self_transfer_window_hours: int = 72
     llm_off: bool = False
+    gmail_query: str | None = None
 
     @property
     def inbox_dir(self) -> Path:
