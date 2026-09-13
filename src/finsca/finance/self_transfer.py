@@ -73,16 +73,11 @@ def _best_credit(
         in_window.append((int(delta.total_seconds()), credit))
     if not in_window:
         return None
-    signaled = [
-        item
-        for item in in_window
-        if _linked(debit, item[1], accounts)
-    ]
-    pool = signaled or in_window
-    if not signaled and len(in_window) > 1:
+    signaled = [item for item in in_window if _linked(debit, item[1], accounts)]
+    if not signaled:
         return None
-    pool.sort(key=lambda item: item[0])
-    return pool[0][1]
+    signaled.sort(key=lambda item: item[0])
+    return signaled[0][1]
 
 
 def _linked(debit: Transaction, credit: Transaction, accounts: dict[str, Account]) -> bool:
@@ -103,7 +98,8 @@ def _refs(tx: Transaction) -> set[str]:
 
 def _mentions_account(tx: Transaction, account: Account) -> bool:
     blob = normalize_description(f"{tx.description_raw} {tx.description_norm}")
-    tokens = {account.last4 or "", *(alias.upper() for alias in account.holder_aliases)}
-    tokens.update(vpa.upper() for vpa in account.upi_vpas)
-    tokens.discard("")
-    return any(token in blob for token in tokens)
+    tokens = [account.last4, *account.holder_aliases, *account.upi_vpas]
+    for token in tokens:
+        if token and re.search(rf"\b{re.escape(token.upper())}\b", blob):
+            return True
+    return False

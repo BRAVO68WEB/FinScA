@@ -13,7 +13,7 @@ from finsca.ingest.detect import list_inbox_files
 from finsca.ingest.dispatch import parse_inbox_file
 from finsca.ingest.errors import ParseError
 from finsca.db.repositories import transactions as tx_repo
-from finsca.finance.apply import apply_rules, link_self_transfers
+from finsca.ledger.apply import apply_rules, link_self_transfers
 from finsca.ingest.persist import persist_batch
 from finsca.ingest.types import IngestFileResult, IngestSummary
 

@@ -179,3 +179,4 @@ Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 6 
 - Phase 3 review: one event_key (account+date+paise), AlertRecord pipeline, persist months only with balances, loaders raise ParseError.
 - Implemented Phase 4 on `phase-4-self-transfer`.
 - Phase 4 review: pair only on ref / last4-alias-VPA / unique candidate; review decisions in apply.py; rules return a DTO.
+- Residual review: no unsigned unique-candidate pairs; word-boundary last4; apply I/O moved to ledger/; --always requires --match.

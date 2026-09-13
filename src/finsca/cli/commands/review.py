@@ -6,12 +6,11 @@ from rich.table import Table
 from finsca.cli.render import console
 from finsca.config.settings import Settings
 from finsca.core.enums import Category
-from finsca.core.models import Transaction
 from finsca.core.money import format_inr
 from finsca.db.repositories import accounts as account_repo
 from finsca.db.repositories import transactions as tx_repo
 from finsca.db.runtime import db_session
-from finsca.finance.apply import (
+from finsca.ledger.apply import (
     ReviewDecision,
     apply_rules,
     link_self_transfers,
@@ -59,7 +58,9 @@ def list_pending() -> None:
             tx.description_raw[:60],
         )
     console.print(table)
-    console.print(f"{len(rows)} pending  —  finsca review apply ID income|transfer [--always]")
+    console.print(
+        f"{len(rows)} pending  —  finsca review apply ID income|transfer [--always --match TOKEN]"
+    )
 
 
 @app.command("link")
@@ -89,23 +90,20 @@ def apply_cmd(
         if category not in _INCOME_CATEGORIES:
             raise typer.BadParameter(f"category must be one of {', '.join(_INCOME_CATEGORIES)}")
         cat = _INCOME_CATEGORIES[category]
+    if always:
+        if choice is ReviewDecision.SKIP:
+            raise typer.BadParameter("--always cannot be used with skip")
+        if not match:
+            raise typer.BadParameter("--always requires --match TOKEN")
     with db_session() as session:
         tx = resolve_transaction(session, txn)
         if tx is None or tx.id is None:
             console.print(f"[red]transaction not found or ambiguous: {txn}[/red]")
             raise typer.Exit(code=1)
-        remember = None
-        if always and choice is not ReviewDecision.SKIP:
-            remember = match or _default_match(tx)
+        remember = match if always else None
+        if remember:
             console.print(f"remembered  {remember}")
         updated = review(session, tx.id, choice, category=cat, remember=remember)
     console.print(
         f"{choice.value}  {(updated.id or '')[:8]}  {format_inr(updated.amount)}  {updated.description_raw[:50]}"
     )
-
-
-def _default_match(tx: Transaction) -> str:
-    words = [part for part in tx.description_raw.replace("/", " ").split() if part.isalpha() and len(part) > 3]
-    if words:
-        return " ".join(words[:3])
-    return (tx.description_norm or tx.description_raw)[:24]

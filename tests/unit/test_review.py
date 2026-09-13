@@ -13,7 +13,7 @@ from finsca.core.models import Account, Transaction
 from finsca.db.repositories import accounts as account_repo
 from finsca.db.repositories import transactions as tx_repo
 from finsca.db.repositories import transactions as tx_repo
-from finsca.finance.apply import apply_rules, link_self_transfers
+from finsca.ledger.apply import apply_rules, link_self_transfers
 
 runner = CliRunner()
 

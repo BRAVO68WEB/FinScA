@@ -77,7 +77,7 @@ def test_does_not_pair_outside_window() -> None:
     assert pairs == []
 
 
-def test_unique_candidate_pairs_without_ref() -> None:
+def test_unique_candidate_without_signal_is_not_paired() -> None:
     axis = _account("a1", "4004", "AXIS")
     icici = _account("a2", "0044", "ICICI")
     when = datetime(2026, 6, 14, tzinfo=timezone.utc)
@@ -88,7 +88,21 @@ def test_unique_candidate_pairs_without_ref() -> None:
         ],
         [axis, icici],
     )
-    assert len(pairs) == 1
+    assert pairs == []
+
+
+def test_last4_inside_upi_ref_is_not_a_mention() -> None:
+    axis = _account("a1", "4004", "AXIS")
+    icici = _account("a2", "0044", "ICICI")
+    when = datetime(2026, 6, 14, tzinfo=timezone.utc)
+    pairs = find_pairs(
+        [
+            _tx("d1", "a1", "-100.00", when, "UPI/6531400483200"),
+            _tx("c1", "a2", "100.00", when, "UPI IN"),
+        ],
+        [axis, icici],
+    )
+    assert pairs == []
 
 
 def test_last4_picks_among_multiple_candidates() -> None:
