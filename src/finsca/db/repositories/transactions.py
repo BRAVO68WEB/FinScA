@@ -3,11 +3,16 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from datetime import datetime
+from decimal import Decimal
+
+from finsca.core.enums import SourceKind
 from finsca.core.ids import content_hash, new_id
 from finsca.core.models import Transaction
 from finsca.core.money import to_paise
 from finsca.db import schema as tables
 from finsca.db.mapping import transaction_from_row
+from finsca.finance.dedupe import event_fingerprint
 from finsca.finance.normalize import normalize_description
 
 
@@ -23,7 +28,6 @@ def hash_for(tx: Transaction, description_norm: str) -> str:
         tx.posted_at.date().isoformat(),
         str(to_paise(tx.amount)),
         description_norm[:48],
-        tx.source_kind.value,
     )
 
 
@@ -75,6 +79,33 @@ def get(session: Session, transaction_id: str) -> Transaction | None:
 def get_by_hash(session: Session, digest: str) -> Transaction | None:
     row = session.scalar(select(tables.Transaction).where(tables.Transaction.content_hash == digest))
     return transaction_from_row(row) if row else None
+
+
+def find_same_event(
+    session: Session,
+    account_id: str,
+    posted_at: datetime,
+    amount: Decimal,
+) -> Transaction | None:
+    target = event_fingerprint(account_id, posted_at, amount)
+    for row in list_for_account(session, account_id):
+        if event_fingerprint(row.account_id or "", row.posted_at, row.amount) == target:
+            return row
+    return None
+
+
+def enrich_source(session: Session, existing: Transaction, source_kind: SourceKind) -> Transaction:
+    if existing.id is None:
+        return existing
+    row = session.get(tables.Transaction, existing.id)
+    if row is None:
+        return existing
+    tag = source_kind.value
+    seen = row.source_ref or row.source_kind
+    if tag not in seen.split(";"):
+        row.source_ref = f"{seen};{tag}"
+        session.flush()
+    return transaction_from_row(row)
 
 
 def list_for_account(session: Session, account_id: str) -> list[Transaction]:

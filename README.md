@@ -2,7 +2,7 @@
 
 Personal **Financial Services Agent** — an India-first, local, agentic CLI that turns bank-statement PDFs, Gmail exports, and SMS dumps into a monthly financial report.
 
-Phases 0–2 are in: ledger CLI plus PDF ingest that archives the inbox. Later phases are stubbed.
+Phases 0–3 are in: ledger CLI, PDF ingest, and SMS/email alerts that dedupe against the statement. Later phases are stubbed.
 
 - Design: **[PLAN.md](PLAN.md)**
 - Live tracker: **[PROGRESS.md](PROGRESS.md)**

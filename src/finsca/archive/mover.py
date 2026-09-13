@@ -29,13 +29,15 @@ def archive_successes(
     updated: list[IngestFileResult] = []
     archived: list[dict[str, object]] = []
     for item in files:
-        target = dest / item.path.name
+        rel = item.relpath or item.path.name
+        target = dest / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(item.path), target)
         stored = item.model_copy(update={"archived_as": str(target)})
         updated.append(stored)
         archived.append(
             {
-                "original": item.path.name,
+                "original": item.relpath or item.path.name,
                 "sha256": item.sha256,
                 "parser": item.parser,
                 "tx_count": item.tx_count,

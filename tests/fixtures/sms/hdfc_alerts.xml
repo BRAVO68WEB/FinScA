@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<smses count="2">
+  <sms address="HDFCBK" date="1754006400000" body="Rs.250.00 debited from a/c XX4521 on 01-08-26 to SWIGGY via UPI Ref 111" />
+  <sms address="HDFCBK" date="1754265600000" body="Your A/c XX4521 is credited with Rs.12500.00 on 04-08-26 by NEFT SALARY" />
+</smses>
