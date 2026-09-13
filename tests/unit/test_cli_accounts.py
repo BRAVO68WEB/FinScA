@@ -43,8 +43,7 @@ def test_accounts_alias_and_months(data_dir: Path) -> None:
         app,
         [
             "accounts",
-            "months",
-            "set",
+            "set-month",
             "4521",
             "--month",
             "2026-08",
@@ -59,3 +58,16 @@ def test_accounts_alias_and_months(data_dir: Path) -> None:
     assert months.exit_code == 0, months.output
     assert "2026-08" in months.output
     assert "12500.50" in months.output
+
+
+def test_accounts_rename_by_id_prefix(data_dir: Path) -> None:
+    added = runner.invoke(
+        app,
+        ["accounts", "add", "HDFC Salary", "--type", "savings", "--last4", "4521"],
+    )
+    assert added.exit_code == 0, added.output
+    prefix = added.output.split("id=", 1)[1].split()[0]
+    renamed = runner.invoke(app, ["accounts", "rename", prefix, "HDFC Main"])
+    assert renamed.exit_code == 0, renamed.output
+    listed = runner.invoke(app, ["accounts", "list"])
+    assert "HDFC Main" in listed.output

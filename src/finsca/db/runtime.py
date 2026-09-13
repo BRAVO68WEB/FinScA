@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from sqlalchemy.orm import Session
 
 from finsca.config.settings import Settings
-from finsca.db.engine import init_db, make_engine
+from finsca.db.engine import make_engine
 from finsca.db.session import session_scope
 
 
@@ -14,7 +14,5 @@ from finsca.db.session import session_scope
 def db_session() -> Iterator[Session]:
     settings = Settings()
     settings.ensure_dirs()
-    engine = make_engine(settings.db_path)
-    init_db(engine)
-    with session_scope(engine) as session:
+    with session_scope(make_engine(settings.db_path)) as session:
         yield session

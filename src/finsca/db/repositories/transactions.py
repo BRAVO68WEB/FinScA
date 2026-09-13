@@ -4,26 +4,35 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from finsca.core.ids import content_hash, new_id
-from finsca.core.models import NewTransaction, Transaction
+from finsca.core.models import Transaction
 from finsca.core.money import to_paise
 from finsca.db import schema as tables
 from finsca.db.mapping import transaction_from_row
 from finsca.finance.normalize import normalize_description
 
 
-def _hash_for(payload: NewTransaction, description_norm: str) -> str:
-    posted = payload.posted_at.date().isoformat()
+class DuplicateTransactionError(ValueError):
+    def __init__(self, existing: Transaction) -> None:
+        self.existing = existing
+        super().__init__(f"duplicate transaction {existing.content_hash}")
+
+
+def hash_for(tx: Transaction, description_norm: str) -> str:
     return content_hash(
-        payload.account_id,
-        posted,
-        str(to_paise(payload.amount)),
+        tx.account_id,
+        tx.posted_at.date().isoformat(),
+        str(to_paise(tx.amount)),
         description_norm[:48],
-        payload.source_kind.value,
+        tx.source_kind.value,
     )
 
 
-def add(session: Session, payload: NewTransaction) -> Transaction:
+def add(session: Session, payload: Transaction) -> Transaction:
     description_norm = payload.description_norm or normalize_description(payload.description_raw)
+    digest = payload.content_hash or hash_for(payload, description_norm)
+    existing = get_by_hash(session, digest)
+    if existing is not None:
+        raise DuplicateTransactionError(existing)
     row = tables.Transaction(
         id=new_id(),
         account_id=payload.account_id,
@@ -44,7 +53,7 @@ def add(session: Session, payload: NewTransaction) -> Transaction:
         gst_source=payload.gst_source.value,
         source_kind=payload.source_kind.value,
         source_ref=payload.source_ref,
-        content_hash=_hash_for(payload, description_norm),
+        content_hash=digest,
         ingest_run_id=payload.ingest_run_id,
         duplicate_of_id=payload.duplicate_of_id,
         self_transfer_group_id=payload.self_transfer_group_id,

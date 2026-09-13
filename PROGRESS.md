@@ -66,7 +66,7 @@ Shipped:
 
 - [x] Pydantic DTOs in `core/models.py` (`Account`, `AccountMonth`, `Transaction` + `New*` inputs)
 - [x] Account / AccountMonth / Transaction repositories
-- [x] `finsca accounts list|add|alias|rename|months|months set`
+- [x] `finsca accounts list|add|alias|rename|months|set-month`
 - [x] Money helper tests
 - [x] tmp SQLite CRUD + CLI tests
 
@@ -74,7 +74,8 @@ Verified:
 
 - `pytest` — 16 passed
 - `finsca accounts add "HDFC Salary" --type savings --last4 4521`
-- `finsca accounts list` / `alias` / `months set` / `months --account`
+- `finsca accounts list` / `alias` / `set-month` / `months --account`
+- id prefix resolve; computed cannot overwrite statement months
 
 Branch: `phase-1-ledger-core`
 
@@ -106,3 +107,4 @@ Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 3 
 - Implemented Phase 0. CLI runs; tests pass.
 - Added this file. PLAN.md now points here for live status.
 - Implemented Phase 1 on branch `phase-1-ledger-core`: accounts ledger + CLI.
+- Review fixes on `phase-1-ledger-core`: one DTO per entity, JSON alias/VPA lists, id-prefix resolve, statement-wins `set_month`, flattened `accounts set-month`, unique transaction hash.

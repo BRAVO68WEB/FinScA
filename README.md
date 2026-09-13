@@ -17,6 +17,7 @@ finsca            # prints "no runs yet"
 finsca config
 finsca accounts add "HDFC Salary" --type savings --last4 4521
 finsca accounts list
+finsca accounts set-month 4521 --month 2026-08 --opening 10000 --closing 12500.50
 pytest
 ```
 

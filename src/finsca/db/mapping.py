@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import json
-from datetime import datetime
-
 from finsca.core.enums import (
     AccountType,
     Category,
@@ -19,17 +16,6 @@ from finsca.core.money import from_paise
 from finsca.db import schema as tables
 
 
-def dump_list(values: list[str]) -> str:
-    return json.dumps(values)
-
-
-def load_list(raw: str | None) -> list[str]:
-    if not raw:
-        return []
-    parsed = json.loads(raw)
-    return [str(item) for item in parsed]
-
-
 def account_from_row(row: tables.Account) -> Account:
     credit = from_paise(row.credit_limit_paise) if row.credit_limit_paise is not None else None
     return Account(
@@ -38,8 +24,8 @@ def account_from_row(row: tables.Account) -> Account:
         institution=row.institution,
         type=AccountType(row.type),
         last4=row.last4,
-        upi_vpas=load_list(row.upi_vpas),
-        holder_aliases=load_list(row.holder_aliases),
+        upi_vpas=list(row.upi_vpas or []),
+        holder_aliases=list(row.holder_aliases or []),
         currency=row.currency,
         is_own=row.is_own,
         credit_limit=credit,
@@ -92,9 +78,3 @@ def transaction_from_row(row: tables.Transaction) -> Transaction:
         label_confidence=row.label_confidence,
         income_review=IncomeReview(row.income_review),
     )
-
-
-def utcnow() -> datetime:
-    from datetime import timezone
-
-    return datetime.now(timezone.utc)

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+from finsca.core.clock import utcnow
 
 
 class Base(DeclarativeBase):
@@ -18,13 +20,13 @@ class Account(Base):
     institution: Mapped[str | None] = mapped_column(String(128), nullable=True)
     type: Mapped[str] = mapped_column(String(32))
     last4: Mapped[str | None] = mapped_column(String(4), nullable=True)
-    upi_vpas: Mapped[str] = mapped_column(Text, default="[]")
-    holder_aliases: Mapped[str] = mapped_column(Text, default="[]")
+    upi_vpas: Mapped[list[str]] = mapped_column(JSON, default=list)
+    holder_aliases: Mapped[list[str]] = mapped_column(JSON, default=list)
     currency: Mapped[str] = mapped_column(String(8), default="INR")
     is_own: Mapped[bool] = mapped_column(Boolean, default=True)
     credit_limit_paise: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
 class AccountMonth(Base):
@@ -43,6 +45,7 @@ class AccountMonth(Base):
 
 class Transaction(Base):
     __tablename__ = "transactions"
+    __table_args__ = (UniqueConstraint("content_hash", name="uq_transaction_hash"),)
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id"))
@@ -63,7 +66,7 @@ class Transaction(Base):
     gst_source: Mapped[str] = mapped_column(String(16), default="none")
     source_kind: Mapped[str] = mapped_column(String(16))
     source_ref: Mapped[str | None] = mapped_column(String(256), nullable=True)
-    content_hash: Mapped[str] = mapped_column(String(64), index=True)
+    content_hash: Mapped[str] = mapped_column(String(64))
     ingest_run_id: Mapped[str | None] = mapped_column(ForeignKey("ingest_runs.id"), nullable=True)
     duplicate_of_id: Mapped[str | None] = mapped_column(ForeignKey("transactions.id"), nullable=True)
     self_transfer_group_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
@@ -108,14 +111,14 @@ class Rule(Base):
     match_value: Mapped[str] = mapped_column(String(256))
     category: Mapped[str | None] = mapped_column(String(32), nullable=True)
     intent: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
 class IngestRun(Base):
     __tablename__ = "ingest_runs"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    started_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     status: Mapped[str] = mapped_column(String(16), default="running")
     archive_path: Mapped[str | None] = mapped_column(String(512), nullable=True)

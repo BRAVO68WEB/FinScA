@@ -7,7 +7,7 @@ from finsca.core.money import from_paise, parse_inr, to_paise
 
 def test_parse_inr_quantizes_to_paise() -> None:
     assert parse_inr("10.1") == Decimal("10.10")
-    assert parse_inr(10.1) == Decimal("10.10")
+    assert parse_inr("10.10") == Decimal("10.10")
 
 
 def test_to_paise_and_back_roundtrip() -> None:

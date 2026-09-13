@@ -21,7 +21,7 @@ from finsca.core.enums import (
 _LAST4 = re.compile(r"^\d{4}$")
 
 
-class NewAccount(BaseModel):
+class Account(BaseModel):
     display_name: str
     type: AccountType
     institution: str | None = None
@@ -31,6 +31,9 @@ class NewAccount(BaseModel):
     currency: str = "INR"
     is_own: bool = True
     credit_limit: Decimal | None = None
+    id: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     @field_validator("last4")
     @classmethod
@@ -50,13 +53,7 @@ class NewAccount(BaseModel):
         return name
 
 
-class Account(NewAccount):
-    id: str
-    created_at: datetime
-    updated_at: datetime
-
-
-class NewAccountMonth(BaseModel):
+class AccountMonth(BaseModel):
     account_id: str
     year: int
     month: int = Field(ge=1, le=12)
@@ -64,13 +61,10 @@ class NewAccountMonth(BaseModel):
     closing: Decimal
     source: MonthSource
     statement_id: str | None = None
+    id: str | None = None
 
 
-class AccountMonth(NewAccountMonth):
-    id: str
-
-
-class NewTransaction(BaseModel):
+class Transaction(BaseModel):
     account_id: str
     posted_at: datetime
     amount: Decimal
@@ -96,8 +90,5 @@ class NewTransaction(BaseModel):
     label_source: LabelSource | None = None
     label_confidence: float | None = None
     income_review: IncomeReview = IncomeReview.PENDING
-
-
-class Transaction(NewTransaction):
-    id: str
-    content_hash: str
+    id: str | None = None
+    content_hash: str | None = None
