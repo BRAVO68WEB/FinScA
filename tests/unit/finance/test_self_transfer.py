@@ -77,6 +77,37 @@ def test_does_not_pair_outside_window() -> None:
     assert pairs == []
 
 
+def test_unique_candidate_pairs_without_ref() -> None:
+    axis = _account("a1", "4004", "AXIS")
+    icici = _account("a2", "0044", "ICICI")
+    when = datetime(2026, 6, 14, tzinfo=timezone.utc)
+    pairs = find_pairs(
+        [
+            _tx("d1", "a1", "-100.00", when, "UPI OUT"),
+            _tx("c1", "a2", "100.00", when, "UPI IN"),
+        ],
+        [axis, icici],
+    )
+    assert len(pairs) == 1
+
+
+def test_last4_picks_among_multiple_candidates() -> None:
+    a = _account("a1", "4004", "AXIS")
+    b = _account("a2", "0044", "ICICI")
+    c = _account("a3", "9033", "IDFC")
+    when = datetime(2026, 6, 14, tzinfo=timezone.utc)
+    pairs = find_pairs(
+        [
+            _tx("d1", "a1", "-100.00", when, "UPI to 0044"),
+            _tx("c1", "a2", "100.00", when, "UPI IN ICICI"),
+            _tx("c2", "a3", "100.00", when, "UPI IN IDFC"),
+        ],
+        [a, b, c],
+    )
+    assert len(pairs) == 1
+    assert pairs[0].credit_id == "c1"
+
+
 def test_ambiguous_same_amount_without_signal_is_skipped() -> None:
     a = _account("a1", "4004", "AXIS")
     b = _account("a2", "0044", "ICICI")

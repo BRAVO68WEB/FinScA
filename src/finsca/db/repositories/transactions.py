@@ -108,16 +108,18 @@ def list_pending_review(session: Session) -> list[Transaction]:
     return [transaction_from_row(row) for row in rows]
 
 
-def mark_self_transfer(session: Session, debit_id: str, credit_id: str, group_id: str) -> None:
-    for tx_id in (debit_id, credit_id):
-        row = session.get(tables.Transaction, tx_id)
-        if row is None:
-            continue
+def mark_self_transfer(session: Session, debit_id: str, credit_id: str, group_id: str) -> bool:
+    debit = session.get(tables.Transaction, debit_id)
+    credit = session.get(tables.Transaction, credit_id)
+    if debit is None or credit is None:
+        return False
+    for row in (debit, credit):
         row.intent = Intent.SELF_TRANSFER.value
         row.exclude_from_cashflow = True
         row.self_transfer_group_id = group_id
         row.income_review = IncomeReview.SKIPPED.value
     session.flush()
+    return True
 
 
 def apply_review(

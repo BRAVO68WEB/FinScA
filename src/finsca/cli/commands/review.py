@@ -5,14 +5,19 @@ from rich.table import Table
 
 from finsca.cli.render import console
 from finsca.config.settings import Settings
-from finsca.core.enums import Category, IncomeReview, Intent
+from finsca.core.enums import Category
 from finsca.core.models import Transaction
 from finsca.core.money import format_inr
 from finsca.db.repositories import accounts as account_repo
-from finsca.db.repositories import rules as rule_repo
 from finsca.db.repositories import transactions as tx_repo
 from finsca.db.runtime import db_session
-from finsca.finance.apply import apply_rules, link_self_transfers, pending_credits
+from finsca.finance.apply import (
+    ReviewDecision,
+    apply_rules,
+    link_self_transfers,
+    resolve_transaction,
+    review,
+)
 
 app = typer.Typer(help="Confirm credits as income or transfer, and link self-transfers.")
 
@@ -34,7 +39,7 @@ def default(ctx: typer.Context) -> None:
 @app.command("list")
 def list_pending() -> None:
     with db_session() as session:
-        rows = pending_credits(session)
+        rows = tx_repo.list_pending_review(session)
         names = {item.id: item.display_name for item in account_repo.list_all(session)}
     if not rows:
         console.print("no pending reviews")
@@ -63,82 +68,40 @@ def link() -> None:
     with db_session() as session:
         paired = link_self_transfers(session, window_hours=settings.self_transfer_window_hours)
         ruled = apply_rules(session)
-        left = len(pending_credits(session))
+        left = len(tx_repo.list_pending_review(session))
     console.print(f"linked {paired} self-transfers  rules applied {ruled}  pending {left}")
 
 
 @app.command("apply")
-def apply(
+def apply_cmd(
     txn: str = typer.Argument(..., help="id or unique prefix"),
     decision: str = typer.Argument(..., help="income | transfer | skip"),
     category: str | None = typer.Option(None, "--category"),
     always: bool = typer.Option(False, "--always"),
     match: str | None = typer.Option(None, "--match", help="Token to remember with --always"),
 ) -> None:
-    choice = decision.strip().lower()
-    if choice not in {"income", "transfer", "skip"}:
-        raise typer.BadParameter("decision must be income, transfer, or skip")
+    try:
+        choice = ReviewDecision(decision.strip().lower())
+    except ValueError as exc:
+        raise typer.BadParameter("decision must be income, transfer, or skip") from exc
     cat = None
     if category:
         if category not in _INCOME_CATEGORIES:
             raise typer.BadParameter(f"category must be one of {', '.join(_INCOME_CATEGORIES)}")
         cat = _INCOME_CATEGORIES[category]
     with db_session() as session:
-        tx = _resolve_tx(session, txn)
-        if tx.id is None:
+        tx = resolve_transaction(session, txn)
+        if tx is None or tx.id is None:
+            console.print(f"[red]transaction not found or ambiguous: {txn}[/red]")
             raise typer.Exit(code=1)
-        if choice == "income":
-            updated = tx_repo.apply_review(
-                session,
-                tx.id,
-                intent=Intent.INCOME,
-                income_review=IncomeReview.INCOME,
-                exclude_from_cashflow=False,
-                category=cat or Category.OTHER,
-            )
-        elif choice == "transfer":
-            updated = tx_repo.apply_review(
-                session,
-                tx.id,
-                intent=Intent.TRANSFER,
-                income_review=IncomeReview.TRANSFER,
-                exclude_from_cashflow=True,
-            )
-        else:
-            updated = tx_repo.apply_review(
-                session,
-                tx.id,
-                intent=tx.intent,
-                income_review=IncomeReview.SKIPPED,
-                exclude_from_cashflow=tx.exclude_from_cashflow,
-            )
-        if always and choice in {"income", "transfer"}:
-            token = match or _default_match(tx)
-            rule_repo.add(
-                session,
-                match_field="description_contains",
-                match_value=token,
-                intent=Intent.INCOME if choice == "income" else Intent.TRANSFER,
-                category=cat,
-            )
-            console.print(f"remembered  {token}")
+        remember = None
+        if always and choice is not ReviewDecision.SKIP:
+            remember = match or _default_match(tx)
+            console.print(f"remembered  {remember}")
+        updated = review(session, tx.id, choice, category=cat, remember=remember)
     console.print(
-        f"{choice}  {(updated.id or '')[:8]}  {format_inr(updated.amount)}  {updated.description_raw[:50]}"
+        f"{choice.value}  {(updated.id or '')[:8]}  {format_inr(updated.amount)}  {updated.description_raw[:50]}"
     )
-
-
-def _resolve_tx(session, token: str) -> Transaction:
-    needle = token.strip()
-    rows = pending_credits(session)
-    hits = [tx for tx in rows if tx.id and tx.id.startswith(needle)]
-    if len(hits) == 1:
-        return hits[0]
-    all_rows = tx_repo.list_all(session)
-    hits = [tx for tx in all_rows if tx.id and tx.id.startswith(needle)]
-    if len(hits) != 1:
-        console.print(f"[red]transaction not found or ambiguous: {token}[/red]")
-        raise typer.Exit(code=1)
-    return hits[0]
 
 
 def _default_match(tx: Transaction) -> str:

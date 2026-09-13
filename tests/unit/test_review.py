@@ -12,7 +12,8 @@ from finsca.core.enums import AccountType, Channel, IncomeReview, Intent, Source
 from finsca.core.models import Account, Transaction
 from finsca.db.repositories import accounts as account_repo
 from finsca.db.repositories import transactions as tx_repo
-from finsca.finance.apply import apply_rules, link_self_transfers, pending_credits
+from finsca.db.repositories import transactions as tx_repo
+from finsca.finance.apply import apply_rules, link_self_transfers
 
 runner = CliRunner()
 
@@ -57,7 +58,7 @@ def test_link_marks_both_legs_self_transfer(db_session: Session) -> None:
     _, _, debit, credit = _seed_pair(db_session)
     assert credit.income_review is IncomeReview.PENDING
     assert link_self_transfers(db_session) == 1
-    assert pending_credits(db_session) == []
+    assert tx_repo.list_pending_review(db_session) == []
     left = tx_repo.get(db_session, debit.id or "")
     right = tx_repo.get(db_session, credit.id or "")
     assert left is not None and right is not None
