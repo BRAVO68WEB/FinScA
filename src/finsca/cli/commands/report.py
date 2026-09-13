@@ -68,7 +68,11 @@ def _print(report: MonthReport) -> None:
     gst = report.gst
     gst_rate = f"{gst.rate:.0%}" if gst.rate is not None else "n/a"
     console.print(f"gst     {format_inr(gst.gst)}  of {format_inr(gst.taxable)}  ({gst_rate})")
+    unlabeled = (
+        f"{report.unlabeled_share:.0%}" if report.unlabeled_share is not None else "n/a"
+    )
     console.print(f"emi     paid={format_inr(report.emi_paid)}  missed={report.missed_emis}")
+    console.print(f"labels  {unlabeled} of cashflow debits unlabeled")
     health = report.health
     console.print(f"health  {health.score if health.score is not None else 'n/a'}")
     bits = "  ".join(

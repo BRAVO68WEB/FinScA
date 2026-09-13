@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from finsca.core.models import Transaction
-from finsca.finance.habits import expense_txs
+from finsca.finance.cashflow import is_spend
 
 
 @dataclass(frozen=True)
@@ -19,7 +19,9 @@ class GstTotals:
 def gst_totals(transactions: list[Transaction]) -> GstTotals:
     gst = Decimal("0.00")
     taxable = Decimal("0.00")
-    for tx in expense_txs(transactions):
+    for tx in transactions:
+        if not is_spend(tx):
+            continue
         if tx.gst_amount is None:
             continue
         gst += tx.gst_amount

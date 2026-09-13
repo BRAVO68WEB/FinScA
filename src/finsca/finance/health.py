@@ -43,26 +43,26 @@ def health_score(
     missed_emis: int,
 ) -> Health:
     parts: dict[str, int | None] = {
-        "savings_rate": _band(flow.savings_rate, good=Decimal("0.20"), bad=Decimal("0")),
-        "emi_income": _band(emi_to_income, good=Decimal("0.20"), bad=Decimal("0.50"), invert=True),
-        "cc_util": _band(cc_util, good=Decimal("0.30"), bad=Decimal("0.80"), invert=True),
-        "emergency": _band(emergency_months, good=Decimal("6"), bad=Decimal("0")),
-        "salary": None if salary_regular is None else (100 if salary_regular else 40),
-        "unlabeled": _band(
+        "savings": _band(flow.savings_rate, good=Decimal("0.20"), bad=Decimal("0")),
+        "emi": _band(emi_to_income, good=Decimal("0.20"), bad=Decimal("0.50"), invert=True),
+        "cards": _band(cc_util, good=Decimal("0.30"), bad=Decimal("0.80"), invert=True),
+        "runway": _band(emergency_months, good=Decimal("6"), bad=Decimal("0")),
+        "paycycle": None if salary_regular is None else (100 if salary_regular else 40),
+        "labels": _band(
             (Decimal("1") - unlabeled) if unlabeled is not None else None,
             good=Decimal("0.85"),
             bad=Decimal("0.40"),
         ),
-        "missed_emi": 100 if missed_emis == 0 else max(0, 100 - 25 * missed_emis),
+        "emis": 100 if missed_emis == 0 else max(0, 100 - 25 * missed_emis),
     }
     weights = {
-        "savings_rate": 25,
-        "emi_income": 20,
-        "cc_util": 15,
-        "emergency": 15,
-        "salary": 10,
-        "unlabeled": 10,
-        "missed_emi": 5,
+        "savings": 25,
+        "emi": 20,
+        "cards": 15,
+        "runway": 15,
+        "paycycle": 10,
+        "labels": 10,
+        "emis": 5,
     }
     usable = {key: weights[key] for key, value in parts.items() if value is not None}
     if not usable:

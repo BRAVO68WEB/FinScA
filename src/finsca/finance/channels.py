@@ -37,10 +37,10 @@ _MIX = (Channel.UPI, Channel.DEBIT_CARD, Channel.CREDIT_CARD)
 
 
 def channel_mix(transactions: list[Transaction]) -> list[tuple[Channel, Decimal]]:
-    from finsca.finance.habits import expense_txs
+    from finsca.finance.cashflow import is_spend
 
     totals: Counter[Channel] = Counter()
-    for tx in expense_txs(transactions):
-        if tx.channel in _MIX:
+    for tx in transactions:
+        if is_spend(tx) and tx.channel in _MIX:
             totals[tx.channel] += abs(tx.amount)
     return [(channel, totals[channel]) for channel in _MIX]

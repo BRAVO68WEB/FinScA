@@ -23,7 +23,7 @@ def write_html(report: MonthReport, dest: Path) -> Path:
             f"<html><body><h1>FinScA {report.year:04d}-{report.month:02d}</h1>"
             f"<p>In {format_inr(flow.inflow)} / Out {format_inr(flow.outflow)} / "
             f"Net {format_inr(flow.net)} / Savings {rate}</p>"
-            f"<p>Health {health}</p>"
+            f"<p>Health {health} / unlabeled {report.unlabeled_share}</p>"
             f"<table>{cats}</table></body></html>"
         ),
         encoding="utf-8",

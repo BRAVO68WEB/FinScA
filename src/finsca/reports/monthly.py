@@ -27,6 +27,7 @@ class MonthReport:
     health: Health
     emi_paid: Decimal
     missed_emis: int
+    unlabeled_share: Decimal | None
 
 
 def build_report(
@@ -42,7 +43,14 @@ def build_report(
     income = sum((tx.amount for tx in transactions if tx.intent is Intent.INCOME), Decimal("0"))
     emi_paid = sum((abs(tx.amount) for tx in transactions if tx.intent is Intent.EMI), Decimal("0"))
     emi_ratio = (emi_paid / income) if income > 0 else None
-    missed = sum(1 for item in occurrences if item.status is EmiStatus.MISSED)
+    missed = sum(
+        1
+        for item in occurrences
+        if item.status is EmiStatus.MISSED
+        and item.due_date.year == year
+        and item.due_date.month == month
+    )
+    unlabeled = unlabeled_share(transactions)
     salary = salary_cycle(transactions)
     health = health_score(
         flow=flow,
@@ -50,7 +58,7 @@ def build_report(
         cc_util=_cc_util(accounts, months),
         emergency_months=_emergency_months(accounts, months, flow.outflow),
         salary_regular=salary.regular,
-        unlabeled=unlabeled_share(transactions),
+        unlabeled=unlabeled,
         missed_emis=missed,
     )
     return MonthReport(
@@ -64,6 +72,7 @@ def build_report(
         health=health,
         emi_paid=emi_paid,
         missed_emis=missed,
+        unlabeled_share=unlabeled,
     )
 
 

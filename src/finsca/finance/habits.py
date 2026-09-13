@@ -1,34 +1,27 @@
-"""Spend-habit stats from expense-like debits."""
+"""Spend-habit stats from labeled expenses."""
 
 from __future__ import annotations
 
 from collections import Counter
 from decimal import Decimal
 
-from finsca.core.enums import Intent
 from finsca.core.models import Transaction
-from finsca.finance.cashflow import in_cashflow
-
-
-def expense_txs(transactions: list[Transaction]) -> list[Transaction]:
-    return [
-        tx
-        for tx in transactions
-        if in_cashflow(tx) and tx.amount < 0 and tx.intent in {Intent.EXPENSE, Intent.UNKNOWN, Intent.EMI}
-    ]
+from finsca.finance.cashflow import in_cashflow, is_spend
 
 
 def top_categories(transactions: list[Transaction], *, limit: int = 6) -> list[tuple[str, Decimal]]:
     totals: Counter[str] = Counter()
-    for tx in expense_txs(transactions):
+    for tx in transactions:
+        if not is_spend(tx):
+            continue
         key = tx.category.value if tx.category else "unlabeled"
         totals[key] += abs(tx.amount)
     return totals.most_common(limit)
 
 
 def unlabeled_share(transactions: list[Transaction]) -> Decimal | None:
-    expenses = expense_txs(transactions)
-    if not expenses:
+    pool = [tx for tx in transactions if in_cashflow(tx) and tx.amount < 0]
+    if not pool:
         return None
-    unlabeled = sum(1 for tx in expenses if tx.category is None)
-    return (Decimal(unlabeled) / Decimal(len(expenses))).quantize(Decimal("0.0001"))
+    unlabeled = sum(1 for tx in pool if tx.category is None)
+    return (Decimal(unlabeled) / Decimal(len(pool))).quantize(Decimal("0.0001"))

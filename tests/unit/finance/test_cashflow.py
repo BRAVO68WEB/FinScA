@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from finsca.core.enums import Category, Channel, Intent, SourceKind
-from finsca.core.models import Transaction
+from finsca.core.enums import Category, Channel, EmiStatus, Intent, SourceKind
+from finsca.core.models import EmiOccurrence, Transaction
 from finsca.finance.cashflow import cashflow
 from finsca.finance.health import health_score
 from finsca.reports.monthly import build_report
@@ -51,7 +51,19 @@ def test_health_uses_savings_rate() -> None:
     )
     assert result.score is not None
     assert result.score >= 80
-    assert result.parts["cc_util"] is None
+    assert result.parts["cards"] is None
+
+
+def test_unknown_debit_is_not_outflow() -> None:
+    flow = cashflow(
+        [
+            _tx("10000.00", Intent.INCOME),
+            _tx("-3000.00", Intent.UNKNOWN),
+            _tx("-1000.00", Intent.EXPENSE, category=Category.DINING),
+        ]
+    )
+    assert flow.outflow == Decimal("1000.00")
+    assert flow.inflow == Decimal("10000.00")
 
 
 def test_build_report_month_dto() -> None:
@@ -71,3 +83,29 @@ def test_build_report_month_dto() -> None:
     assert report.categories[0][0] == "dining"
     assert report.salary.count == 1
     assert report.salary.modal_day == 10
+
+
+def test_missed_emi_counts_only_report_month() -> None:
+    occ = [
+        EmiOccurrence(
+            loan_id="l1",
+            due_date=datetime(2026, 7, 5, tzinfo=timezone.utc),
+            expected=Decimal("1000"),
+            status=EmiStatus.MISSED,
+        ),
+        EmiOccurrence(
+            loan_id="l1",
+            due_date=datetime(2026, 8, 5, tzinfo=timezone.utc),
+            expected=Decimal("1000"),
+            status=EmiStatus.MISSED,
+        ),
+    ]
+    report = build_report(
+        year=2026,
+        month=8,
+        transactions=[],
+        accounts=[],
+        months=[],
+        occurrences=occ,
+    )
+    assert report.missed_emis == 1
