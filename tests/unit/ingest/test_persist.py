@@ -3,12 +3,14 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from decimal import Decimal
 
+import pytest
 from sqlalchemy.orm import Session
 
 from finsca.core.enums import AccountType, Channel, MonthSource, SourceKind
 from finsca.core.models import Account
 from finsca.db.repositories import accounts as account_repo
 from finsca.db.repositories import transactions as tx_repo
+from finsca.ingest.errors import ParseError
 from finsca.ingest.persist import persist_batch
 from finsca.ingest.types import AccountHint, ParsedBatch, ParsedLine
 
@@ -64,3 +66,11 @@ def test_persist_reuses_existing_account_and_dedupes(db_session: Session) -> Non
     assert second.dupes == 2
     assert second.inserted == 0
     assert len(tx_repo.list_for_account(db_session, existing.id)) == 2
+
+
+def test_persist_requires_last4(db_session: Session) -> None:
+    batch = _batch()
+    batch.account.last4 = None
+    with pytest.raises(ParseError, match="last4"):
+        persist_batch(db_session, batch, run_id="run1")
+    assert account_repo.list_all(db_session) == []

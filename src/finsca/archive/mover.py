@@ -15,21 +15,24 @@ def write_error_sidecar(path: Path, error: str) -> Path:
     return sidecar
 
 
+def planned_archive_dir(archive_dir: Path, run_id: str, *, when: date | None = None) -> Path:
+    day = when or utcnow().date()
+    return archive_dir / f"{day.isoformat()}_run_{run_id[:12]}"
+
+
 def archive_successes(
     files: list[IngestFileResult],
-    archive_dir: Path,
+    dest: Path,
     run_id: str,
-    *,
-    when: date | None = None,
-) -> Path:
-    day = when or utcnow().date()
-    dest = archive_dir / f"{day.isoformat()}_run_{run_id[:12]}"
+) -> list[IngestFileResult]:
     dest.mkdir(parents=True, exist_ok=True)
+    updated: list[IngestFileResult] = []
     archived: list[dict[str, object]] = []
     for item in files:
         target = dest / item.path.name
         shutil.move(str(item.path), target)
-        item.archived_as = str(target)
+        stored = item.model_copy(update={"archived_as": str(target)})
+        updated.append(stored)
         archived.append(
             {
                 "original": item.path.name,
@@ -39,9 +42,8 @@ def archive_successes(
                 "warning": item.warning,
             }
         )
-    manifest = dest / "manifest.json"
-    manifest.write_text(
+    (dest / "manifest.json").write_text(
         json.dumps({"run_id": run_id, "files": archived}, indent=2),
         encoding="utf-8",
     )
-    return dest
+    return updated

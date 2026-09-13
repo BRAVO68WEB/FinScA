@@ -4,19 +4,17 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from finsca.archive.mover import archive_successes, write_error_sidecar
+from finsca.archive.mover import archive_successes, planned_archive_dir, write_error_sidecar
 from finsca.config.settings import Settings
 from finsca.core.enums import IngestStatus
+from finsca.core.ids import file_sha256
 from finsca.db.repositories import ingest_runs
-from finsca.ingest.detect import detect_bank, file_digest, list_inbox_pdfs
+from finsca.ingest.detect import detect_bank, list_inbox_pdfs
+from finsca.ingest.errors import ParseError
 from finsca.ingest.pdf.base import parse_statement
 from finsca.ingest.pdf.text_extract import extract_text
 from finsca.ingest.persist import persist_batch
 from finsca.ingest.types import IngestFileResult, IngestSummary
-
-
-class ParseError(ValueError):
-    pass
 
 
 def run_ingest(session: Session, settings: Settings) -> IngestSummary:
@@ -29,10 +27,7 @@ def run_ingest(session: Session, settings: Settings) -> IngestSummary:
     successes = [item for item in results if item.error is None]
     failures = [item for item in results if item.error is not None]
 
-    archive_path = None
-    if successes:
-        archive_path = archive_successes(successes, settings.archive_dir, run.id)
-
+    archive_path = planned_archive_dir(settings.archive_dir, run.id) if successes else None
     parsed = sum(item.tx_count for item in successes)
     dupes = sum(item.dupe_count for item in successes)
     pending = sum(item.pending_review for item in successes)
@@ -50,6 +45,12 @@ def run_ingest(session: Session, settings: Settings) -> IngestSummary:
     )
     for item in results:
         ingest_runs.add_file(session, run.id, item)
+    session.commit()
+
+    if successes and archive_path is not None:
+        archived = archive_successes(successes, archive_path, run.id)
+        by_name = {item.path.name: item for item in archived}
+        results = [by_name.get(item.path.name, item) if item.error is None else item for item in results]
 
     return IngestSummary(
         run_id=run.id,
@@ -63,16 +64,16 @@ def run_ingest(session: Session, settings: Settings) -> IngestSummary:
 
 
 def _ingest_one(session: Session, path: Path, run_id: str) -> IngestFileResult:
-    digest = file_digest(path)
+    digest = file_sha256(path)
     try:
-        text = extract_text(path)
-        if not text:
-            raise ParseError("PDF contained no extractable text")
-        bank = detect_bank(text)
-        batch = parse_statement(text, bank)
-        if not batch.lines:
-            raise ParseError("no transactions parsed")
-        persisted = persist_batch(session, batch, run_id)
+        with session.begin_nested():
+            text = extract_text(path)
+            if not text:
+                raise ParseError("PDF contained no extractable text")
+            batch = parse_statement(text, detect_bank(text))
+            if not batch.lines:
+                raise ParseError("no transactions parsed")
+            persisted = persist_batch(session, batch, run_id)
         warning = "; ".join(batch.warnings) if batch.warnings else None
         return IngestFileResult(
             path=path,
@@ -83,7 +84,7 @@ def _ingest_one(session: Session, path: Path, run_id: str) -> IngestFileResult:
             pending_review=persisted.pending_review,
             warning=warning,
         )
-    except Exception as exc:
+    except ParseError as exc:
         write_error_sidecar(path, str(exc))
         return IngestFileResult(path=path, sha256=digest, error=str(exc))
 

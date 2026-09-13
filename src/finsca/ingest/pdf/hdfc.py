@@ -3,7 +3,8 @@ from __future__ import annotations
 from decimal import Decimal
 
 from finsca.finance.channels import infer_channel
-from finsca.ingest.pdf.generic import parse_generic
+from finsca.ingest.pdf.generic import parse_generic_lines
+from finsca.ingest.pdf.header import batch_from, parse_header
 from finsca.ingest.pdf.patterns import DATE_RE, amounts_in, posted_at
 from finsca.ingest.types import ParsedBatch, ParsedLine
 
@@ -11,13 +12,14 @@ _COLUMN_MARKERS = ("WITHDRAWAL AMT", "DEPOSIT AMT", "WITHDRAWAL", "DEPOSIT")
 
 
 def parse_hdfc(text: str) -> ParsedBatch:
-    batch = parse_generic(text, parser="hdfc", institution="HDFC")
+    header = parse_header(text, institution="HDFC")
     if _has_columns(text):
-        column_lines = _parse_columns(text)
-        if column_lines:
-            batch.lines = column_lines
-            batch.warnings = [w for w in batch.warnings if not w.startswith("skipped line")]
-    return batch
+        lines, warnings = _parse_columns(text)
+        if not lines:
+            lines, warnings = parse_generic_lines(text)
+    else:
+        lines, warnings = parse_generic_lines(text)
+    return batch_from("hdfc", header, lines, warnings)
 
 
 def _has_columns(text: str) -> bool:
@@ -25,8 +27,9 @@ def _has_columns(text: str) -> bool:
     return "WITHDRAWAL" in upper and "DEPOSIT" in upper
 
 
-def _parse_columns(text: str) -> list[ParsedLine]:
+def _parse_columns(text: str) -> tuple[list[ParsedLine], list[str]]:
     lines: list[ParsedLine] = []
+    warnings: list[str] = []
     for raw in text.splitlines():
         row = raw.strip()
         dated = DATE_RE.match(row)
@@ -38,8 +41,8 @@ def _parse_columns(text: str) -> list[ParsedLine]:
         rest = row[len(date_s) :].strip()
         amounts = amounts_in(rest)
         if len(amounts) < 2:
+            warnings.append(f"skipped line: {row[:80]}")
             continue
-        balance = amounts[-1]
         body = amounts[:-1]
         if len(body) >= 2:
             withdrawal, deposit = body[0], body[1]
@@ -48,6 +51,7 @@ def _parse_columns(text: str) -> list[ParsedLine]:
             amount = _signed_from_narration(body[0], rest)
         desc = _narration(rest, amounts)
         if not desc:
+            warnings.append(f"skipped line: {row[:80]}")
             continue
         lines.append(
             ParsedLine(
@@ -57,8 +61,7 @@ def _parse_columns(text: str) -> list[ParsedLine]:
                 channel=infer_channel(desc),
             )
         )
-        _ = balance
-    return lines
+    return lines, warnings
 
 
 def _signed_from_narration(amount: Decimal, rest: str) -> Decimal:
@@ -71,7 +74,6 @@ def _signed_from_narration(amount: Decimal, rest: str) -> Decimal:
 def _narration(rest: str, amounts: list[Decimal]) -> str:
     cleaned = rest
     for value in amounts:
-        token = f"{value:,.2f}"
-        cleaned = cleaned.replace(token, " ")
+        cleaned = cleaned.replace(f"{value:,.2f}", " ")
         cleaned = cleaned.replace(str(value), " ")
     return " ".join(cleaned.split())

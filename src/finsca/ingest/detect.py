@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from finsca.core.ids import file_sha256
-
 _BANK_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("hdfc", ("HDFC BANK", "HDFC Bank")),
     ("icici", ("ICICI BANK", "ICICI Bank")),
@@ -29,7 +27,3 @@ def detect_bank(text: str) -> str | None:
         if any(marker.upper() in upper for marker in markers):
             return bank_id
     return None
-
-
-def file_digest(path: Path) -> str:
-    return file_sha256(path)

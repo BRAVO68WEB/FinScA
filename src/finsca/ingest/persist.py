@@ -8,8 +8,9 @@ from finsca.core.enums import IncomeReview, Intent, MonthSource, SourceKind
 from finsca.core.models import Account, AccountMonth, Transaction
 from finsca.db.repositories import accounts as account_repo
 from finsca.db.repositories import transactions as tx_repo
-from finsca.db.repositories.accounts import StatementProtectedError
 from finsca.db.repositories.transactions import DuplicateTransactionError
+from finsca.ingest.errors import ParseError
+from finsca.ingest.pdf.header import account_display_name
 from finsca.ingest.types import AccountHint, ParsedBatch
 
 
@@ -51,23 +52,27 @@ def persist_batch(session: Session, batch: ParsedBatch, run_id: str) -> PersistR
 
 
 def find_or_create_account(session: Session, hint: AccountHint) -> Account:
-    if hint.last4:
-        matches = account_repo.list_by_last4(session, hint.last4)
-        if hint.institution:
-            inst = [
-                item
-                for item in matches
-                if (item.institution or "").casefold() == hint.institution.casefold()
-            ]
-            if len(inst) == 1:
-                return inst[0]
-        if len(matches) == 1:
-            return matches[0]
-    name = hint.display_name or _fallback_name(hint)
+    if not hint.last4:
+        raise ParseError("statement has no account last4")
+    matches = account_repo.list_by_last4(session, hint.last4)
+    if hint.institution:
+        inst = [
+            item
+            for item in matches
+            if (item.institution or "").casefold() == hint.institution.casefold()
+        ]
+        if len(inst) == 1:
+            return inst[0]
+        if len(inst) > 1:
+            raise ParseError(f"ambiguous account {hint.last4} at {hint.institution}")
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        raise ParseError(f"ambiguous account last4 {hint.last4}")
     return account_repo.add(
         session,
         Account(
-            display_name=name,
+            display_name=hint.display_name or account_display_name(hint.institution, hint.last4) or "Account",
             type=hint.account_type,
             institution=hint.institution,
             last4=hint.last4,
@@ -81,25 +86,14 @@ def _write_month(session: Session, account_id: str, batch: ParsedBatch) -> None:
     period = batch.period_end or batch.period_start
     if period is None:
         return
-    try:
-        account_repo.set_month(
-            session,
-            AccountMonth(
-                account_id=account_id,
-                year=period.year,
-                month=period.month,
-                opening=batch.opening,
-                closing=batch.closing,
-                source=MonthSource.STATEMENT,
-            ),
-        )
-    except StatementProtectedError:
-        pass
-
-
-def _fallback_name(hint: AccountHint) -> str:
-    if hint.institution and hint.last4:
-        return f"{hint.institution} {hint.last4}"
-    if hint.last4:
-        return f"Account {hint.last4}"
-    return hint.institution or "Imported account"
+    account_repo.set_month(
+        session,
+        AccountMonth(
+            account_id=account_id,
+            year=period.year,
+            month=period.month,
+            opening=batch.opening,
+            closing=batch.closing,
+            source=MonthSource.STATEMENT,
+        ),
+    )

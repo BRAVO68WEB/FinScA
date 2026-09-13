@@ -131,3 +131,4 @@ Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 4 
 - Implemented Phase 1 on branch `phase-1-ledger-core`: accounts ledger + CLI.
 - Review fixes on `phase-1-ledger-core`: one DTO per entity, JSON alias/VPA lists, id-prefix resolve, statement-wins `set_month`, flattened `accounts set-month`, unique transaction hash.
 - Merged Phase 1 to main. Implemented Phase 2 on `phase-2-pdf-ingest`.
+- Phase 2 review: commit then archive, savepoint per file, require last4, header vs line parse, drop unused subagent wrappers.

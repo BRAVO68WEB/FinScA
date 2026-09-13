@@ -13,11 +13,13 @@ def test_archive_moves_successes_and_writes_manifest(tmp_path: Path) -> None:
     src.write_bytes(b"%PDF")
     archive = tmp_path / "archive"
     item = IngestFileResult(path=src, sha256="abc", parser="hdfc", tx_count=2)
-    dest = archive_successes([item], archive, "runid1234567890")
+    dest = archive / "2026-09-13_run_runid123456"
+    updated = archive_successes([item], dest, "runid1234567890")
     assert not src.exists()
+    assert item.archived_as is None
+    assert updated[0].archived_as == str(dest / "stmt.pdf")
     assert (dest / "stmt.pdf").exists()
     assert (dest / "manifest.json").exists()
-    assert "runid123456" in dest.name
 
 
 def test_error_sidecar_stays_beside_file(tmp_path: Path) -> None:

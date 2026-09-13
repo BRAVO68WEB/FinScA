@@ -2,61 +2,19 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from finsca.core.enums import AccountType
 from finsca.finance.channels import infer_channel
-from finsca.ingest.pdf.patterns import (
-    CLOSING_RE,
-    DATE_RE,
-    LINE_RE,
-    OPENING_RE,
-    first_amount,
-    first_customer,
-    first_last4,
-    first_period,
-    parse_amount,
-    posted_at,
-)
-from finsca.ingest.types import AccountHint, ParsedBatch, ParsedLine
+from finsca.ingest.pdf.header import batch_from, parse_header
+from finsca.ingest.pdf.patterns import DATE_RE, LINE_RE, parse_amount, posted_at
+from finsca.ingest.types import ParsedBatch, ParsedLine
 
 
 def parse_generic(text: str, *, parser: str = "generic", institution: str | None = None) -> ParsedBatch:
-    period = first_period(text)
-    last4 = first_last4(text)
-    customer = first_customer(text)
-    opening = first_amount(OPENING_RE, text)
-    closing = first_amount(CLOSING_RE, text)
-    hint = AccountHint(
-        last4=last4,
-        institution=institution,
-        display_name=_display_name(institution, last4, customer),
-        account_type=AccountType.SAVINGS,
-    )
-    lines, warnings = _parse_lines(text)
-    if not lines:
-        warnings.append("no transaction lines matched")
-    return ParsedBatch(
-        parser=parser,
-        account=hint,
-        period_start=period[0] if period else None,
-        period_end=period[1] if period else None,
-        opening=opening,
-        closing=closing,
-        lines=lines,
-        warnings=warnings,
-    )
+    header = parse_header(text, institution=institution)
+    lines, warnings = parse_generic_lines(text)
+    return batch_from(parser, header, lines, warnings)
 
 
-def _display_name(institution: str | None, last4: str | None, customer: str | None) -> str | None:
-    if institution and last4:
-        return f"{institution} {last4}"
-    if institution:
-        return institution
-    if last4:
-        return f"Account {last4}"
-    return customer
-
-
-def _parse_lines(text: str) -> tuple[list[ParsedLine], list[str]]:
+def parse_generic_lines(text: str) -> tuple[list[ParsedLine], list[str]]:
     lines: list[ParsedLine] = []
     warnings: list[str] = []
     running: Decimal | None = None
@@ -70,9 +28,10 @@ def _parse_lines(text: str) -> tuple[list[ParsedLine], list[str]]:
             continue
         date_s, desc, first, second, suffix = match.groups()
         amount = parse_amount(first)
-        signed = _sign(amount, suffix, parse_amount(second) if second else None, running)
-        if second:
-            running = parse_amount(second)
+        balance = parse_amount(second) if second else None
+        signed = _sign(amount, suffix, balance, running)
+        if balance is not None:
+            running = balance
         lines.append(
             ParsedLine(
                 posted_at=posted_at(date_s),
@@ -94,6 +53,4 @@ def _sign(
         return -abs(amount) if suffix.lower() == "dr" else abs(amount)
     if balance is not None and previous_balance is not None:
         return -abs(amount) if balance < previous_balance else abs(amount)
-    if suffix is None and balance is None:
-        return -abs(amount)
     return -abs(amount)
