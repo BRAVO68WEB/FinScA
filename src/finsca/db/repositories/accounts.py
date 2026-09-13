@@ -56,6 +56,11 @@ def list_all(session: Session) -> list[Account]:
     return [account_from_row(row) for row in rows]
 
 
+def list_by_last4(session: Session, last4: str) -> list[Account]:
+    rows = session.scalars(select(tables.Account).where(tables.Account.last4 == last4)).all()
+    return [account_from_row(row) for row in rows]
+
+
 def resolve(session: Session, token: str) -> Account | None:
     needle = token.strip()
     if not needle:

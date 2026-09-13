@@ -2,7 +2,7 @@
 
 Personal **Financial Services Agent** — an India-first, local, agentic CLI that turns bank-statement PDFs, Gmail exports, and SMS dumps into a monthly financial report.
 
-Phases 0–1 are in: Typer CLI, settings, SQLite ledger, and `finsca accounts`. Later phases are stubbed.
+Phases 0–2 are in: ledger CLI plus PDF ingest that archives the inbox. Later phases are stubbed.
 
 - Design: **[PLAN.md](PLAN.md)**
 - Live tracker: **[PROGRESS.md](PROGRESS.md)**
@@ -18,6 +18,8 @@ finsca config
 finsca accounts add "HDFC Salary" --type savings --last4 4521
 finsca accounts list
 finsca accounts set-month 4521 --month 2026-08 --opening 10000 --closing 12500.50
+# drop a statement into data/inbox/pdf/ then:
+finsca ingest
 pytest
 ```
 

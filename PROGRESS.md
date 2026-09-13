@@ -3,8 +3,8 @@
 Living tracker. The design stays in [PLAN.md](PLAN.md). Update this file when a phase starts, lands, or is blocked.
 
 **Last updated:** 2026-09-13  
-**Current phase:** 2 — PDF ingest + archive (not started)  
-**Last completed:** Phase 1 — Ledger core
+**Current phase:** 3 — SMS + email files (not started)  
+**Last completed:** Phase 2 — PDF ingest + archive
 
 ---
 
@@ -14,7 +14,7 @@ Living tracker. The design stays in [PLAN.md](PLAN.md). Update this file when a 
 |---|---|---|
 | 0 | Skeleton | **done** |
 | 1 | Ledger core | **done** |
-| 2 | PDF ingest + archive | not started |
+| 2 | PDF ingest + archive | **done** |
 | 3 | SMS + email files | not started |
 | 4 | Self-transfer + review queue | not started |
 | 5 | Labeling | not started |
@@ -81,21 +81,43 @@ Branch: `phase-1-ledger-core`
 
 ---
 
-## Phase 2 — PDF ingest + archive (next)
+## Phase 2 — PDF ingest + archive
 
-**Exit:** drop a statement PDF → txs + official open/close → inbox empty.
+**Exit:** drop a statement PDF → txs + official open/close → inbox empty. **Met.**
+
+Shipped:
+
+- [x] Inbox PDF detect + bank fingerprint (HDFC / ICICI / SBI / Axis)
+- [x] Generic regex parser + HDFC withdrawal/deposit columns
+- [x] Persist accounts, statement months, transactions (dupes skipped)
+- [x] Archive mover: `data/archive/YYYY-MM-DD_run_<id>/` + `manifest.json`
+- [x] Failed files stay in inbox with `.error.json`
+- [x] `finsca ingest`
+
+Verified:
+
+- `pytest` — 34 passed
+- Drop HDFC sample PDF → 2 txs, statement open/close, inbox `pdf=0`
+
+Branch: `phase-2-pdf-ingest`
+
+---
+
+## Phase 3 — SMS + email files (next)
+
+**Exit:** same UPI hit in SMS + PDF is one row.
 
 Still to do:
 
-- [ ] File detect + 1–2 bank parsers + generic fallback
-- [ ] Ingest pipeline up to persist
-- [ ] Archive mover (inbox → `data/archive/<run-id>/`)
+- [ ] SMS XML/CSV/JSON loaders + Indian bank templates
+- [ ] eml/mbox bank-alert parser
+- [ ] Cross-source dedupe
 
 ---
 
 ## Later phases
 
-Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 3 until Phase 2’s exit works.
+Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 4 until Phase 3’s exit works.
 
 ---
 
@@ -108,3 +130,4 @@ Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 3 
 - Added this file. PLAN.md now points here for live status.
 - Implemented Phase 1 on branch `phase-1-ledger-core`: accounts ledger + CLI.
 - Review fixes on `phase-1-ledger-core`: one DTO per entity, JSON alias/VPA lists, id-prefix resolve, statement-wins `set_month`, flattened `accounts set-month`, unique transaction hash.
+- Merged Phase 1 to main. Implemented Phase 2 on `phase-2-pdf-ingest`.

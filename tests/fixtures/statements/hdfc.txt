@@ -1,0 +1,9 @@
+HDFC BANK
+Account No : XXXXXXXXXXXX4521
+Customer Name : TEST USER
+Statement From : 01/08/2026 To : 31/08/2026
+Opening Balance : 10,000.00
+Date     Narration          Withdrawal Amt   Deposit Amt   Closing Balance
+01/08/26 UPI-SWIGGY         250.00                         9,750.00
+04/08/26 NEFT CR-ACME PAY                  12,500.00       22,250.00
+Closing Balance : 22,250.00
