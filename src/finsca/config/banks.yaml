@@ -1,0 +1,14 @@
+# Bank fingerprints and statement quirks. Parsers land in Phase 2 / 9.
+banks:
+  - id: hdfc
+    names: ["HDFC Bank", "HDFC"]
+  - id: icici
+    names: ["ICICI Bank", "ICICI"]
+  - id: sbi
+    names: ["State Bank of India", "SBI"]
+  - id: axis
+    names: ["Axis Bank", "AXIS"]
+  - id: kotak
+    names: ["Kotak Mahindra Bank", "Kotak"]
+  - id: idfc
+    names: ["IDFC FIRST Bank", "IDFC"]

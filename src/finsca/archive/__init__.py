@@ -1,0 +1,1 @@
+"""Inbox → archive mover."""

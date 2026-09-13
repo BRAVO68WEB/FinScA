@@ -1,0 +1,30 @@
+# Default India-first category taxonomy. Edit without changing code.
+categories:
+  - salary
+  - freelance
+  - business_income
+  - interest
+  - refund
+  - grocery
+  - dining
+  - transport
+  - fuel
+  - rent
+  - utilities
+  - mobile_internet
+  - shopping
+  - health
+  - education
+  - entertainment
+  - travel
+  - insurance
+  - investment
+  - tax_gst
+  - emi
+  - transfer
+  - self_transfer
+  - cash
+  - other
+
+# Deterministic merchant / UPI hints (Phase 5 expands this).
+merchants: []

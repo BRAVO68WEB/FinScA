@@ -1,0 +1,38 @@
+# Secrets and local config
+.env
+.env.*
+!.env.example
+.finsca.toml
+*.toml.bak
+
+# Runtime data (keep folder structure via .gitkeep)
+data/**
+!data/**/
+!data/**/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
