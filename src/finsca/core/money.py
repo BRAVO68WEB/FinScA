@@ -13,3 +13,7 @@ def to_paise(amount: Decimal) -> int:
 
 def from_paise(paise: int) -> Decimal:
     return (Decimal(paise) / Decimal(100)).quantize(PAISE)
+
+
+def format_inr(amount: Decimal) -> str:
+    return f"{parse_inr(amount):.2f}"
