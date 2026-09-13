@@ -23,6 +23,8 @@ finsca ingest
 finsca review link
 finsca review list
 finsca review apply <id> income --category salary --always --match "V2V CYBERSECURITY"
+finsca label auto
+finsca label set <id> dining --remember --match SWIGGY
 pytest
 ```
 

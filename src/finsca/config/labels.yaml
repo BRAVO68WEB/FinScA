@@ -26,5 +26,39 @@ categories:
   - cash
   - other
 
-# Deterministic merchant / UPI hints (Phase 5 expands this).
-merchants: []
+merchants:
+  - { match: SWIGGY, category: dining }
+  - { match: ZOMATO, category: dining }
+  - { match: EATCLUB, category: dining }
+  - { match: BLINKIT, category: grocery }
+  - { match: ZEPTO, category: grocery }
+  - { match: INSTAMART, category: grocery }
+  - { match: BIGBASKET, category: grocery }
+  - { match: DMART, category: grocery }
+  - { match: RELIANCE FRESH, category: grocery }
+  - { match: SPOTIFY, category: entertainment }
+  - { match: NETFLIX, category: entertainment }
+  - { match: YOUTUBE, category: entertainment }
+  - { match: HOTSTAR, category: entertainment }
+  - { match: UBER, category: transport }
+  - { match: OLA, category: transport }
+  - { match: RAPIDO, category: transport }
+  - { match: IRCTC, category: travel }
+  - { match: MAKEMYTRIP, category: travel }
+  - { match: INDIGO, category: travel }
+  - { match: AIRTEL, category: mobile_internet }
+  - { match: JIO, category: mobile_internet }
+  - { match: BSNL, category: mobile_internet }
+  - { match: BESCOM, category: utilities }
+  - { match: ELECTRICITY, category: utilities }
+  - { match: PHARMEASY, category: health }
+  - { match: APOLLO, category: health }
+  - { match: LIC OF INDIA, category: insurance }
+  - { match: POLICYBAZAAR, category: insurance }
+  - { match: GROWW, category: investment }
+  - { match: ZERODHA, category: investment }
+  - { match: AMAZON, category: shopping }
+  - { match: FLIPKART, category: shopping }
+  - { match: MYNTRA, category: shopping }
+  - { match: CRED CLUB, category: transfer }
+  - { match: GULLAK, category: investment }

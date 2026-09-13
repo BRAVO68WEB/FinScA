@@ -641,8 +641,9 @@ Loaders + Indian SMS templates + eml/mbox bank-alert parser. Dedupe across sourc
 Pure matcher + `finsca review` for income vs transfer + rule writer.
 **Exit:** own-account hop does not inflate income; user can mark a credit. **Done** — see [PROGRESS.md](PROGRESS.md).
 
-### Phase 5 — Labeling
+### Phase 5 — Labeling ✅
 YAML taxonomy, rule engine, compact-model labeler, `finsca label --remember`.
+**Done** — see [PROGRESS.md](PROGRESS.md).
 
 ### Phase 6 — Loans / EMI
 Loan entity, matcher, `finsca loans`.
@@ -677,4 +678,4 @@ HDFC/ICICI/SBI/Axis coverage, replay, better fingerprints.
 
 Live status, checklists, and the changelog are in **[PROGRESS.md](PROGRESS.md)**. This section only names the next planned slice so the design doc stays stable.
 
-**Next implementation slice:** Phase 5 — labeling.
+**Next implementation slice:** Phase 6 — loans / EMI.

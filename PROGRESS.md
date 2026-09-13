@@ -3,8 +3,8 @@
 Living tracker. The design stays in [PLAN.md](PLAN.md). Update this file when a phase starts, lands, or is blocked.
 
 **Last updated:** 2026-09-13  
-**Current phase:** 5 — Labeling (not started)  
-**Last completed:** Phase 4 — Self-transfer + review queue
+**Current phase:** 6 — Loans / EMI (not started)  
+**Last completed:** Phase 5 — Labeling
 
 ---
 
@@ -17,7 +17,7 @@ Living tracker. The design stays in [PLAN.md](PLAN.md). Update this file when a 
 | 2 | PDF ingest + archive | **done** |
 | 3 | SMS + email files | **done** |
 | 4 | Self-transfer + review queue | **done** |
-| 5 | Labeling | not started |
+| 5 | Labeling | **done** |
 | 6 | Loans / EMI | not started |
 | 7 | Report | not started |
 | 8 | LLM router + ask | not started |
@@ -146,21 +146,41 @@ Branch: `phase-4-self-transfer`
 
 ---
 
-## Phase 5 — Labeling (next)
+## Phase 5 — Labeling
 
-**Exit:** `finsca label --remember` and compact auto-label.
+**Exit:** `finsca label --remember` and compact auto-label. **Met.**
+
+Shipped:
+
+- [x] `labels.yaml` merchant map + `finance/labels.match_merchant`
+- [x] Rule engine fills category before YAML
+- [x] Compact labeler (injectable; skipped when `FINSCA_LLM_OFF` or no key)
+- [x] `finsca label` / `label auto` / `label set ID dining --remember --match TOKEN`
+- [x] Ingest applies labels after self-transfer + review rules
+
+Verified:
+
+- `pytest` — 60 passed
+- YAML labeled Swiggy/Amazon-style merchants on the 3-bank ledger
+
+Branch: `phase-5-labeling`
+
+---
+
+## Phase 6 — Loans / EMI (next)
+
+**Exit:** `finsca loans` tracks an EMI and matches a debit.
 
 Still to do:
 
-- [ ] YAML taxonomy + rule engine on expenses
-- [ ] Compact-model labeler
-- [ ] `finsca label ID CATEGORY --remember`
+- [ ] Loan entity + CLI add/list
+- [ ] Recurring EMI matcher
 
 ---
 
 ## Later phases
 
-Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 6 until Phase 5’s exit works.
+Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 7 until Phase 6’s exit works.
 
 ---
 
@@ -180,3 +200,4 @@ Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 6 
 - Implemented Phase 4 on `phase-4-self-transfer`.
 - Phase 4 review: pair only on ref / last4-alias-VPA / unique candidate; review decisions in apply.py; rules return a DTO.
 - Residual review: no unsigned unique-candidate pairs; word-boundary last4; apply I/O moved to ledger/; --always requires --match.
+- Merged Phase 4. Implemented Phase 5 on `phase-5-labeling`.

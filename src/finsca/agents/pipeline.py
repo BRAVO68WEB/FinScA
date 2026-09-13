@@ -14,6 +14,7 @@ from finsca.ingest.dispatch import parse_inbox_file
 from finsca.ingest.errors import ParseError
 from finsca.db.repositories import transactions as tx_repo
 from finsca.ledger.apply import apply_rules, link_self_transfers
+from finsca.ledger.labeling import apply_labels
 from finsca.ingest.persist import persist_batch
 from finsca.ingest.types import IngestFileResult, IngestSummary
 
@@ -37,6 +38,7 @@ def run_ingest(session: Session, settings: Settings) -> IngestSummary:
     if successes:
         linked = link_self_transfers(session, window_hours=settings.self_transfer_window_hours)
         apply_rules(session)
+        apply_labels(session, settings)
     pending = len(tx_repo.list_pending_review(session))
     status = _status(successes, failures)
     error = failures[0].error if failures and not successes else None
