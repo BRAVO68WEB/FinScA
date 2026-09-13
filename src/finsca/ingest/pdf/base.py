@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+from finsca.ingest.pdf.axis import parse_axis
 from finsca.ingest.pdf.generic import parse_generic
 from finsca.ingest.pdf.hdfc import parse_hdfc
+from finsca.ingest.pdf.icici import parse_icici
+from finsca.ingest.pdf.idfc import parse_idfc
 from finsca.ingest.types import ParsedBatch
 
 _PARSERS = {
     "hdfc": parse_hdfc,
+    "axis": parse_axis,
+    "icici": parse_icici,
+    "idfc": parse_idfc,
 }
 
 

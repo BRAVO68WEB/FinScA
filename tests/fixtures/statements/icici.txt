@@ -1,0 +1,11 @@
+Statement of Transactions in Saving Account no. 582601500044 in INR for the period March 13, 2026 - September 13, 2026
+Your Base Branch: ICICI BANK LIMITED,
+Credit trxn
+1 30.03.2026 47.00 47.00
+INT
+2 06.04.2026 47.00 0.00
+UPI/OUT
+3 14.06.2026 56900.00 56900.00
+UPI/IN
+4 14.06.2026 56844.13 55.87
+BIL/CC

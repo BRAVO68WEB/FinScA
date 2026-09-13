@@ -44,3 +44,37 @@ def test_dispatch_picks_hdfc() -> None:
     batch = parse_statement(text, "hdfc")
     assert batch.parser == "hdfc"
     assert len(batch.lines) == 2
+
+
+def test_axis_parser_uses_running_balance() -> None:
+    text = (FIXTURES / "axis.txt").read_text()
+    batch = parse_statement(text, "axis")
+    assert batch.parser == "axis"
+    assert batch.account.last4 == "4004"
+    assert len(batch.lines) == 2
+    assert batch.lines[0].amount == Decimal("60000.00")
+    assert batch.lines[1].amount == Decimal("-100.00")
+    assert batch.opening + sum(line.amount for line in batch.lines) == batch.closing
+
+
+def test_icici_parser_signs_from_balance() -> None:
+    text = (FIXTURES / "icici.txt").read_text()
+    batch = parse_statement(text, "icici")
+    assert batch.parser == "icici"
+    assert batch.account.last4 == "0044"
+    assert len(batch.lines) == 4
+    assert batch.lines[0].amount == Decimal("47.00")
+    assert batch.lines[2].amount == Decimal("56900.00")
+    assert batch.opening + sum(line.amount for line in batch.lines) == batch.closing
+
+
+def test_idfc_parser_reads_dr_cr_and_summary() -> None:
+    text = (FIXTURES / "idfc.txt").read_text()
+    batch = parse_statement(text, "idfc")
+    assert batch.parser == "idfc"
+    assert batch.account.last4 == "9033"
+    assert len(batch.lines) == 2
+    assert batch.lines[0].amount == Decimal("-10000.00")
+    assert batch.lines[1].amount == Decimal("5.00")
+    assert batch.opening == Decimal("94617.32")
+    assert batch.closing == Decimal("84622.32")
