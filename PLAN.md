@@ -649,8 +649,9 @@ YAML taxonomy, rule engine, compact-model labeler, `finsca label --remember`.
 Loan entity, matcher, `finsca loans`.
 **Done** — see [PROGRESS.md](PROGRESS.md).
 
-### Phase 7 — Report
+### Phase 7 — Report ✅
 Cash flow, habits, DC/CC/UPI, salary cycle, GST, health score, plotext + HTML.
+**Done** — see [PROGRESS.md](PROGRESS.md). Unicode bars in CLI; optional HTML.
 
 ### Phase 8 — LLM router + ask
 Grok + OpenAI + compact wired; `finsca ask`; monthly narrative.
@@ -679,4 +680,4 @@ HDFC/ICICI/SBI/Axis coverage, replay, better fingerprints.
 
 Live status, checklists, and the changelog are in **[PROGRESS.md](PROGRESS.md)**. This section only names the next planned slice so the design doc stays stable.
 
-**Next implementation slice:** Phase 7 — monthly report.
+**Next implementation slice:** Phase 8 — LLM router + ask.
