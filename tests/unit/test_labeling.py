@@ -50,7 +50,7 @@ def test_yaml_labels_swiggy(db_session: Session) -> None:
     assert labeled is not None
     assert labeled.category is Category.DINING
     assert labeled.intent is Intent.EXPENSE
-    assert labeled.label_source is LabelSource.RULE
+    assert labeled.label_source is LabelSource.TAXONOMY
 
 
 def test_label_set_remember_applies_to_next(data_dir: Path, db_session: Session) -> None:

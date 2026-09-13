@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from finsca.config.taxonomy import MerchantHint
 from finsca.core.enums import Category
-from finsca.finance.labels import match_merchant
+from finsca.finance.labels import MerchantHint, match_merchant
 from finsca.llm.redaction import redact
 
 

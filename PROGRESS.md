@@ -201,3 +201,4 @@ Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 7 
 - Phase 4 review: pair only on ref / last4-alias-VPA / unique candidate; review decisions in apply.py; rules return a DTO.
 - Residual review: no unsigned unique-candidate pairs; word-boundary last4; apply I/O moved to ledger/; --always requires --match.
 - Merged Phase 4. Implemented Phase 5 on `phase-5-labeling`.
+- Phase 5 review: MerchantHint in finance/, decide()+TAXONOMY source, compact_complete hook, compact leftovers in 25s.

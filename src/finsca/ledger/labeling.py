@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
+
+from sqlalchemy.orm import Session
+
 from finsca.config.settings import Settings
 from finsca.config.taxonomy import Taxonomy, load_taxonomy
 from finsca.core.enums import Category, Intent, LabelSource
@@ -11,10 +16,13 @@ from finsca.db.repositories import transactions as tx_repo
 from finsca.finance.labels import match_merchant
 from finsca.ledger.apply import resolve_transaction
 from finsca.llm.compact import suggest_labels
-from sqlalchemy.orm import Session
+from finsca.llm.router import compact_complete
 
 _INCOME = {Category.SALARY, Category.FREELANCE, Category.BUSINESS_INCOME, Category.INTEREST}
 _TRANSFER = {Category.TRANSFER, Category.SELF_TRANSFER}
+_BATCH = 25
+
+CompleteFn = Callable[[list[dict[str, str]]], dict[str, Any]]
 
 
 def intent_for(category: Category) -> Intent:
@@ -31,40 +39,37 @@ def intent_for(category: Category) -> Intent:
     return Intent.EXPENSE
 
 
-def apply_labels(session: Session, settings: Settings | None = None, *, complete=None) -> dict[str, int]:
+def decide(tx: Transaction, taxonomy: Taxonomy, session: Session) -> tuple[Category, LabelSource] | None:
+    rule = rule_repo.match(session, tx)
+    if rule and rule.category:
+        return rule.category, LabelSource.RULE
+    hit = match_merchant(tx.description_raw, taxonomy.merchants)
+    if hit:
+        return hit, LabelSource.TAXONOMY
+    return None
+
+
+def apply_labels(session: Session, settings: Settings | None = None, *, complete: CompleteFn | None = None) -> dict[str, int]:
     cfg = settings or Settings()
     taxonomy = load_taxonomy()
+    completer = complete if complete is not None else compact_complete(cfg)
     counts = {"rules": 0, "yaml": 0, "compact": 0}
-    unlabeled = tx_repo.list_unlabeled(session)
-    still: list[Transaction] = []
-    for tx in unlabeled:
-        if tx.id is None:
-            continue
-        rule = rule_repo.match(session, tx)
-        if rule and rule.category:
-            _write(session, tx.id, rule.category, LabelSource.RULE)
-            counts["rules"] += 1
-            continue
-        still.append(tx)
     leftover: list[Transaction] = []
-    for tx in still:
+    for tx in tx_repo.list_unlabeled(session):
         if tx.id is None:
             continue
-        category = match_merchant(tx.description_raw, taxonomy.merchants)
-        if category:
-            _write(session, tx.id, category, LabelSource.RULE)
-            counts["yaml"] += 1
+        decided = decide(tx, taxonomy, session)
+        if decided is None:
+            leftover.append(tx)
             continue
-        leftover.append(tx)
-    if leftover and complete is not None:
-        counts["compact"] = _apply_compact(session, leftover, taxonomy, cfg, complete)
-    elif leftover and not cfg.llm_off:
-        from finsca.llm.router import compact_available, complete_compact
-
-        if compact_available(cfg):
-            counts["compact"] = _apply_compact(
-                session, leftover, taxonomy, cfg, lambda messages: complete_compact(messages, cfg)
-            )
+        category, source = decided
+        _write(session, tx.id, category, source)
+        if source is LabelSource.RULE:
+            counts["rules"] += 1
+        else:
+            counts["yaml"] += 1
+    if leftover and completer is not None:
+        counts["compact"] = _apply_compact(session, leftover, taxonomy, cfg, completer)
     return counts
 
 
@@ -90,22 +95,29 @@ def label_one(
     return updated
 
 
-def _apply_compact(session: Session, rows: list[Transaction], taxonomy: Taxonomy, settings: Settings, complete) -> int:
+def _apply_compact(
+    session: Session,
+    rows: list[Transaction],
+    taxonomy: Taxonomy,
+    settings: Settings,
+    complete: CompleteFn,
+) -> int:
     applied = 0
-    batch = rows[:25]
-    guesses = suggest_labels(
-        [tx.description_raw for tx in batch],
-        taxonomy.categories,
-        complete=complete,
-        min_confidence=settings.label_min_confidence,
-    )
-    by_index = {item.index: item for item in guesses}
-    for index, tx in enumerate(batch):
-        guess = by_index.get(index)
-        if guess is None or tx.id is None:
-            continue
-        _write(session, tx.id, guess.category, LabelSource.MODEL, confidence=guess.confidence)
-        applied += 1
+    for start in range(0, len(rows), _BATCH):
+        batch = rows[start : start + _BATCH]
+        guesses = suggest_labels(
+            [tx.description_raw for tx in batch],
+            taxonomy.categories,
+            complete=complete,
+            min_confidence=settings.label_min_confidence,
+        )
+        by_index = {item.index: item for item in guesses}
+        for index, tx in enumerate(batch):
+            guess = by_index.get(index)
+            if guess is None or tx.id is None:
+                continue
+            _write(session, tx.id, guess.category, LabelSource.MODEL, confidence=guess.confidence)
+            applied += 1
     return applied
 
 

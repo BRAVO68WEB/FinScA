@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 
-from finsca.config.taxonomy import MerchantHint
 from finsca.core.enums import Category
 from finsca.finance.normalize import normalize_description
+
+
+@dataclass(frozen=True)
+class MerchantHint:
+    match: str
+    category: Category
 
 
 def match_merchant(description: str, merchants: tuple[MerchantHint, ...] | list[MerchantHint]) -> Category | None:

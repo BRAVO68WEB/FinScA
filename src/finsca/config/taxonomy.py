@@ -6,12 +6,7 @@ from pathlib import Path
 import yaml
 
 from finsca.core.enums import Category
-
-
-@dataclass(frozen=True)
-class MerchantHint:
-    match: str
-    category: Category
+from finsca.finance.labels import MerchantHint
 
 
 @dataclass(frozen=True)
