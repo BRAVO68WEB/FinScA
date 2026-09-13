@@ -45,11 +45,13 @@ def finish(
     pending_review_count: int,
     archive_path: Path | None,
     error: str | None = None,
+    self_transfer_count: int = 0,
 ) -> tables.IngestRun:
     run.finished_at = utcnow()
     run.status = status.value
     run.parsed_count = parsed_count
     run.dupe_count = dupe_count
+    run.self_transfer_count = self_transfer_count
     run.pending_review_count = pending_review_count
     run.archive_path = str(archive_path) if archive_path else None
     run.error = error

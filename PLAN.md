@@ -637,9 +637,9 @@ Detect + 1–2 bank parsers + generic fallback stub, ingest pipeline up to persi
 Loaders + Indian SMS templates + eml/mbox bank-alert parser. Dedupe across sources.
 **Exit:** same UPI hit in SMS + PDF is one row. **Done** — see [PROGRESS.md](PROGRESS.md).
 
-### Phase 4 — Self-transfer + review queue
+### Phase 4 — Self-transfer + review queue ✅
 Pure matcher + `finsca review` for income vs transfer + rule writer.
-**Exit:** own-account hop does not inflate income; user can mark a credit.
+**Exit:** own-account hop does not inflate income; user can mark a credit. **Done** — see [PROGRESS.md](PROGRESS.md).
 
 ### Phase 5 — Labeling
 YAML taxonomy, rule engine, compact-model labeler, `finsca label --remember`.
@@ -677,4 +677,4 @@ HDFC/ICICI/SBI/Axis coverage, replay, better fingerprints.
 
 Live status, checklists, and the changelog are in **[PROGRESS.md](PROGRESS.md)**. This section only names the next planned slice so the design doc stays stable.
 
-**Next implementation slice:** Phase 4 — self-transfer + review queue.
+**Next implementation slice:** Phase 5 — labeling.
