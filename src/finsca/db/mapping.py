@@ -4,14 +4,16 @@ from finsca.core.enums import (
     AccountType,
     Category,
     Channel,
+    EmiStatus,
     GstSource,
     IncomeReview,
     Intent,
     LabelSource,
+    LoanStatus,
     MonthSource,
     SourceKind,
 )
-from finsca.core.models import Account, AccountMonth, Transaction
+from finsca.core.models import Account, AccountMonth, EmiOccurrence, Loan, Transaction
 from finsca.core.money import from_paise
 from finsca.db import schema as tables
 
@@ -77,4 +79,31 @@ def transaction_from_row(row: tables.Transaction) -> Transaction:
         label_source=LabelSource(row.label_source) if row.label_source else None,
         label_confidence=row.label_confidence,
         income_review=IncomeReview(row.income_review),
+    )
+
+
+def loan_from_row(row: tables.Loan) -> Loan:
+    return Loan(
+        id=row.id,
+        name=row.name,
+        lender=row.lender,
+        principal=from_paise(row.principal_paise),
+        emi=from_paise(row.emi_paise),
+        emi_day=row.emi_day,
+        tenure_months=row.tenure_months,
+        rate_bps=row.rate_bps,
+        start_date=row.start_date,
+        status=LoanStatus(row.status),
+        account_id=row.account_id,
+    )
+
+
+def occurrence_from_row(row: tables.EmiOccurrence) -> EmiOccurrence:
+    return EmiOccurrence(
+        id=row.id,
+        loan_id=row.loan_id,
+        due_date=row.due_date,
+        expected=from_paise(row.expected_paise),
+        status=EmiStatus(row.status),
+        transaction_id=row.transaction_id,
     )

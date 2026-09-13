@@ -645,8 +645,9 @@ Pure matcher + `finsca review` for income vs transfer + rule writer.
 YAML taxonomy, rule engine, compact-model labeler, `finsca label --remember`.
 **Done** — see [PROGRESS.md](PROGRESS.md).
 
-### Phase 6 — Loans / EMI
+### Phase 6 — Loans / EMI ✅
 Loan entity, matcher, `finsca loans`.
+**Done** — see [PROGRESS.md](PROGRESS.md).
 
 ### Phase 7 — Report
 Cash flow, habits, DC/CC/UPI, salary cycle, GST, health score, plotext + HTML.
@@ -678,4 +679,4 @@ HDFC/ICICI/SBI/Axis coverage, replay, better fingerprints.
 
 Live status, checklists, and the changelog are in **[PROGRESS.md](PROGRESS.md)**. This section only names the next planned slice so the design doc stays stable.
 
-**Next implementation slice:** Phase 6 — loans / EMI.
+**Next implementation slice:** Phase 7 — monthly report.
