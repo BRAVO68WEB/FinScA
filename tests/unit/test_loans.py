@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from typer.testing import CliRunner
 
 from finsca.cli.app import app
-from finsca.core.enums import AccountType, Channel, EmiStatus, Intent, SourceKind
+from finsca.core.enums import AccountType, Channel, EmiStatus, Intent, LabelSource, SourceKind
 from finsca.core.models import Account, Loan, Transaction
 from finsca.db.repositories import accounts as account_repo
 from finsca.db.repositories import loans as loan_repo
@@ -52,6 +52,39 @@ def test_add_loan_matches_existing_debit(db_session: Session) -> None:
     labeled = tx_repo.get(db_session, paid[0].transaction_id or "")
     assert labeled is not None
     assert labeled.intent is Intent.EMI
+    assert labeled.label_source is LabelSource.TAXONOMY
+
+
+def test_same_amount_without_emi_signal_is_not_matched(db_session: Session) -> None:
+    account = account_repo.add(
+        db_session,
+        Account(display_name="HDFC 4521", type=AccountType.SAVINGS, last4="4521", institution="HDFC"),
+    )
+    tx_repo.add_event(
+        db_session,
+        Transaction(
+            account_id=account.id or "",
+            posted_at=datetime(2026, 4, 5, tzinfo=timezone.utc),
+            amount=Decimal("-18420.00"),
+            description_raw="UPI/Paid via C/HDFC/friend",
+            source_kind=SourceKind.PDF,
+            channel=Channel.UPI,
+        ),
+    )
+    loan = add_loan(
+        db_session,
+        Loan(
+            name="HDFC Home",
+            lender="HDFC",
+            principal=Decimal("2500000"),
+            emi=Decimal("18420.00"),
+            emi_day=5,
+            start_date=datetime(2026, 4, 1, tzinfo=timezone.utc),
+            account_id=account.id,
+        ),
+    )
+    occ = loan_repo.list_occurrences(db_session, loan.id or "")
+    assert all(item.status is not EmiStatus.PAID for item in occ)
 
 
 def test_loans_cli_add_and_list(data_dir: Path) -> None:

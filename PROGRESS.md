@@ -224,3 +224,4 @@ Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 8 
 - Merged Phase 4. Implemented Phase 5 on `phase-5-labeling`.
 - Phase 5 review: MerchantHint in finance/, decide()+TAXONOMY source, compact_complete hook, compact leftovers in 25s.
 - Merged Phase 5. Implemented Phase 6 on `phase-6-loans`.
+- Phase 6 review: EMI/NACH signal required, upsert by loan+month, label_source=taxonomy.

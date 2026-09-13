@@ -11,7 +11,7 @@ from finsca.core.enums import Category, EmiStatus, Intent, LabelSource, LoanStat
 from finsca.core.models import EmiOccurrence, Loan, Transaction
 from finsca.db.repositories import loans as loan_repo
 from finsca.db.repositories import transactions as tx_repo
-from finsca.finance.emi import as_due_datetime, due_on, is_candidate, looks_like_emi, months_between
+from finsca.finance.emi import as_due_datetime, due_on, is_candidate, months_between
 
 
 def add_loan(session: Session, loan: Loan) -> Loan:
@@ -48,7 +48,7 @@ def match_loan(session: Session, loan: Loan, *, today: date | None = None) -> in
             continue
         due = due_on(month.year, month.month, loan.emi_day)
         due_dt = as_due_datetime(due)
-        hit = _pick(candidates, loan, due, used)
+        hit = _pick(candidates, due, used)
         if hit and hit.id:
             used.add(hit.id)
             _mark_paid(session, hit)
@@ -79,7 +79,6 @@ def match_loan(session: Session, loan: Loan, *, today: date | None = None) -> in
 
 def _pick(
     candidates: list[Transaction],
-    loan: Loan,
     due: date,
     used: set[str],
 ) -> Transaction | None:
@@ -90,11 +89,7 @@ def _pick(
     ]
     if not month_hits:
         return None
-    hinted = [tx for tx in month_hits if looks_like_emi(tx.description_raw, loan.lender)]
-    pool = hinted or month_hits
-    if not hinted and len(month_hits) > 1:
-        return None
-    return min(pool, key=lambda tx: abs(tx.posted_at.day - due.day))
+    return min(month_hits, key=lambda tx: abs(tx.posted_at.day - due.day))
 
 
 def _mark_paid(session: Session, tx: Transaction) -> None:
@@ -104,6 +99,6 @@ def _mark_paid(session: Session, tx: Transaction) -> None:
         session,
         tx.id,
         Category.EMI,
-        source=LabelSource.RULE,
+        source=LabelSource.TAXONOMY,
         intent=Intent.EMI,
     )

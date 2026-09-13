@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import extract, select
 from sqlalchemy.orm import Session
 
 from finsca.core.enums import EmiStatus, LoanStatus
@@ -79,7 +79,8 @@ def upsert_occurrence(session: Session, item: EmiOccurrence) -> EmiOccurrence:
     existing = session.scalar(
         select(tables.EmiOccurrence).where(
             tables.EmiOccurrence.loan_id == item.loan_id,
-            tables.EmiOccurrence.due_date == item.due_date,
+            extract("year", tables.EmiOccurrence.due_date) == item.due_date.year,
+            extract("month", tables.EmiOccurrence.due_date) == item.due_date.month,
         )
     )
     if existing is None:

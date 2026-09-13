@@ -46,11 +46,8 @@ def day_matches(tx: Transaction, loan: Loan, *, window: int = 3) -> bool:
     return abs(tx.posted_at.day - loan.emi_day) <= window
 
 
-def looks_like_emi(description: str, lender: str) -> bool:
-    blob = normalize_description(description)
-    if _EMI_HINT.search(blob):
-        return True
-    return bool(lender) and lender.upper() in blob
+def looks_like_emi(description: str) -> bool:
+    return bool(_EMI_HINT.search(normalize_description(description)))
 
 
 def is_candidate(tx: Transaction, loan: Loan) -> bool:
@@ -58,7 +55,7 @@ def is_candidate(tx: Transaction, loan: Loan) -> bool:
         return False
     if loan.account_id and tx.account_id != loan.account_id:
         return False
-    return amount_matches(tx, loan) and day_matches(tx, loan)
+    return amount_matches(tx, loan) and day_matches(tx, loan) and looks_like_emi(tx.description_raw)
 
 
 def as_due_datetime(day: date) -> datetime:

@@ -25,6 +25,7 @@ def test_amount_and_day_windows() -> None:
     )
     assert amount_matches(tx, loan)
     assert day_matches(tx, loan)
-    assert looks_like_emi(tx.description_raw, "HDFC")
+    assert looks_like_emi(tx.description_raw)
+    assert not looks_like_emi("UPI/Paid via C/HDFC/same amount")
     far = tx.model_copy(update={"posted_at": datetime(2026, 4, 20, tzinfo=timezone.utc)})
     assert not day_matches(far, loan)
