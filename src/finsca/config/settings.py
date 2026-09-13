@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     self_transfer_window_hours: int = 72
     llm_off: bool = False
     gmail_query: str | None = None
+    gmail_months: int = 1
 
     @property
     def inbox_dir(self) -> Path:

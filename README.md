@@ -31,7 +31,7 @@ finsca report --html
 # Gmail (readonly): pip install -e '.[gmail]'
 # put OAuth desktop client JSON at data/gmail_credentials.json
 finsca gmail login
-finsca gmail pull
+finsca gmail pull --months 6
 finsca ingest
 pytest
 ```

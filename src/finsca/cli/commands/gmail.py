@@ -13,7 +13,7 @@ app = typer.Typer(help="Pull bank-alert mail via the Gmail API (readonly).")
 def root(ctx: typer.Context) -> None:
     if ctx.invoked_subcommand is None:
         console.print("finsca gmail login")
-        console.print("finsca gmail pull [--query ...] [--max 100]")
+        console.print("finsca gmail pull [--months 6] [--query ...] [--max 200]")
 
 
 @app.command("login")
@@ -33,18 +33,25 @@ def login_cmd() -> None:
 
 @app.command("pull")
 def pull_cmd(
-    query: str | None = typer.Option(None, "--query", help="Gmail search query"),
-    max_results: int = typer.Option(100, "--max"),
+    months: int | None = typer.Option(None, "--months", min=1, help="How many months back (Gmail newer_than:Nm)"),
+    query: str | None = typer.Option(None, "--query", help="Gmail search query (time window added unless already set)"),
+    max_results: int = typer.Option(200, "--max"),
 ) -> None:
     settings = Settings()
     settings.ensure_dirs()
+    window = months if months is not None else settings.gmail_months
     try:
-        result = gmail_api.pull(settings, query=query, max_results=max_results)
+        built = gmail_api.search_query(months=window, extra=query or settings.gmail_query)
+        result = gmail_api.pull(settings, query=query, months=window, max_results=max_results)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from exc
     except FileNotFoundError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from exc
     except ImportError as exc:
         console.print("[red]Gmail extra not installed. pip install -e '.[gmail]'[/red]")
         raise typer.Exit(code=1) from exc
+    console.print(f"query   {built}")
     console.print(f"pulled  emails={result.emails}  pdfs={result.pdfs}  → {settings.inbox_dir}")
     console.print("run  finsca ingest")
