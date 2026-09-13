@@ -9,9 +9,8 @@ from sqlalchemy.orm import Session
 from finsca.cli.render import console
 from finsca.config.settings import Settings
 from finsca.core.enums import IncomeReview
-from finsca.db.engine import init_db, make_engine
+from finsca.db.runtime import db_session
 from finsca.db.schema import IngestRun, Transaction
-from finsca.db.session import session_scope
 
 INBOX_KINDS = ("pdf", "email", "sms")
 
@@ -54,9 +53,7 @@ def collect_status(settings: Settings, session: Session) -> StatusView:
 def print_status() -> None:
     settings = Settings()
     settings.ensure_dirs()
-    engine = make_engine(settings.db_path)
-    init_db(engine)
-    with session_scope(engine) as session:
+    with db_session() as session:
         view = collect_status(settings, session)
 
     console.print("[bold]FinScA[/bold]")

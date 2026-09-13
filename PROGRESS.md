@@ -3,8 +3,8 @@
 Living tracker. The design stays in [PLAN.md](PLAN.md). Update this file when a phase starts, lands, or is blocked.
 
 **Last updated:** 2026-09-13  
-**Current phase:** 1 — Ledger core (not started)  
-**Last completed:** Phase 0 — Skeleton
+**Current phase:** 2 — PDF ingest + archive (not started)  
+**Last completed:** Phase 1 — Ledger core
 
 ---
 
@@ -13,7 +13,7 @@ Living tracker. The design stays in [PLAN.md](PLAN.md). Update this file when a 
 | Phase | Name | Status |
 |---|---|---|
 | 0 | Skeleton | **done** |
-| 1 | Ledger core | not started |
+| 1 | Ledger core | **done** |
 | 2 | PDF ingest + archive | not started |
 | 3 | SMS + email files | not started |
 | 4 | Self-transfer + review queue | not started |
@@ -58,23 +58,43 @@ Not in Phase 0 (intentionally):
 
 ---
 
-## Phase 1 — Ledger core (next)
+## Phase 1 — Ledger core
 
-**Exit:** `finsca accounts add` works.
+**Exit:** `finsca accounts add` works. **Met.**
+
+Shipped:
+
+- [x] Pydantic DTOs in `core/models.py` (`Account`, `AccountMonth`, `Transaction` + `New*` inputs)
+- [x] Account / AccountMonth / Transaction repositories
+- [x] `finsca accounts list|add|alias|rename|months|months set`
+- [x] Money helper tests
+- [x] tmp SQLite CRUD + CLI tests
+
+Verified:
+
+- `pytest` — 16 passed
+- `finsca accounts add "HDFC Salary" --type savings --last4 4521`
+- `finsca accounts list` / `alias` / `months set` / `months --account`
+
+Branch: `phase-1-ledger-core`
+
+---
+
+## Phase 2 — PDF ingest + archive (next)
+
+**Exit:** drop a statement PDF → txs + official open/close → inbox empty.
 
 Still to do:
 
-- [ ] Pydantic domain DTOs in `core/models.py`
-- [ ] Account / AccountMonth / Transaction repositories
-- [ ] `finsca accounts list|add|alias|months`
-- [ ] Money helper tests (`core/money.py` already exists)
-- [ ] In-memory or tmp SQLite tests for CRUD
+- [ ] File detect + 1–2 bank parsers + generic fallback
+- [ ] Ingest pipeline up to persist
+- [ ] Archive mover (inbox → `data/archive/<run-id>/`)
 
 ---
 
 ## Later phases
 
-Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 2 until Phase 1’s exit command works.
+Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 3 until Phase 2’s exit works.
 
 ---
 
@@ -85,3 +105,4 @@ Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 2 
 - Wrote PLAN.md and set up the workspace (inbox/archive/reports, `.gitignore`, `.env.example`).
 - Implemented Phase 0. CLI runs; tests pass.
 - Added this file. PLAN.md now points here for live status.
+- Implemented Phase 1 on branch `phase-1-ledger-core`: accounts ledger + CLI.

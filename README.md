@@ -2,7 +2,7 @@
 
 Personal **Financial Services Agent** — an India-first, local, agentic CLI that turns bank-statement PDFs, Gmail exports, and SMS dumps into a monthly financial report.
 
-Phase 0 is in: a Typer CLI, settings, and an empty SQLite schema. Later phases are stubbed.
+Phases 0–1 are in: Typer CLI, settings, SQLite ledger, and `finsca accounts`. Later phases are stubbed.
 
 - Design: **[PLAN.md](PLAN.md)**
 - Live tracker: **[PROGRESS.md](PROGRESS.md)**
@@ -15,6 +15,8 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 finsca            # prints "no runs yet"
 finsca config
+finsca accounts add "HDFC Salary" --type savings --last4 4521
+finsca accounts list
 pytest
 ```
 
