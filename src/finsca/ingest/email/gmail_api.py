@@ -12,11 +12,19 @@ from finsca.config.settings import Settings
 from finsca.ingest.email.gmail_decode import AttachmentRef, decode_gmail_message, safe_stem
 
 SCOPE = ("https://www.googleapis.com/auth/gmail.readonly",)
+# Gmail has no *@*.bank.in regex; from:bank.in matches yes.bank.in, axis.bank.in, etc.
 BANK_FILTER = (
-    "from:(hdfcbank.net OR icicibank.com OR axisbank.com OR idfcfirstbank.com "
-    "OR sbi.co.in OR onlinesbi.com OR kotak.com OR cred.club OR phonepe.com "
-    "OR google.com OR paytm.com)"
-    " OR subject:(debited OR credited OR spent OR EMI OR statement OR OTP)"
+    "from:(bank.in OR sbicard.com OR hdfcbank.net OR hdfcbank.com "
+    "OR icicibank.com OR axisbank.com OR idfcfirstbank.com "
+    "OR sbi.co.in OR onlinesbi.com OR kotak.com "
+    "OR cred.club OR protect@cred.club "
+    "OR phonepe.com OR google.com OR paytm.com "
+    "OR yes.bank.in OR axis.bank.in OR hdfcbank.bank.in OR idfcfirst.bank.in "
+    "OR estatement@yes.bank.in OR statements@axis.bank.in OR alerts@axis.bank.in "
+    "OR Emailstatements.cards@hdfcbank.bank.in OR statement@idfcfirst.bank.in "
+    "OR PRIME.card@sbicard.com)"
+    " OR subject:(debited OR credited OR spent OR EMI OR statement OR estatement "
+    "OR e-statement OR \"credit card\" OR bill OR OTP)"
 )
 _PACE_SECONDS = 0.4
 _RETRY_ATTEMPTS = 8

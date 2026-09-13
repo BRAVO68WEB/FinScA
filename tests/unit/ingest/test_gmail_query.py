@@ -9,6 +9,11 @@ def test_months_wraps_default_filter() -> None:
     q = search_query(months=6)
     assert q.startswith("newer_than:6m (")
     assert "hdfcbank.net" in q
+    assert "bank.in" in q
+    assert "sbicard.com" in q
+    assert "protect@cred.club" in q
+    assert "estatement@yes.bank.in" in q
+    assert "PRIME.card@sbicard.com" in q
 
 
 def test_custom_query_gets_months() -> None:
