@@ -155,3 +155,4 @@ Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 5 
 - Merged Phase 1 to main. Implemented Phase 2 on `phase-2-pdf-ingest`.
 - Phase 2 review: commit then archive, savepoint per file, require last4, header vs line parse, drop unused subagent wrappers.
 - Implemented Phase 3 on `phase-3-sms-email`: SMS/email ingest + cross-source dedupe.
+- Phase 3 review: one event_key (account+date+paise), AlertRecord pipeline, persist months only with balances, loaders raise ParseError.

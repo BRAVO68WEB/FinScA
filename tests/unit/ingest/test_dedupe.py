@@ -57,7 +57,8 @@ def test_sms_and_pdf_same_upi_is_one_row(db_session: Session) -> None:
     assert pdf.inserted == 1
     assert sms.inserted == 0
     assert sms.dupes == 1
-    rows = tx_repo.list_for_account(db_session, pdf.account.id)
+    account = account_repo.list_by_last4(db_session, "4521")[0]
+    rows = tx_repo.list_for_account(db_session, account.id)
     assert len(rows) == 1
     assert rows[0].amount == Decimal("-250.00")
     assert "sms" in (rows[0].source_ref or "")

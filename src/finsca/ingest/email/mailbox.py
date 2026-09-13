@@ -1,35 +1,35 @@
 from __future__ import annotations
 
 import mailbox
+import tempfile
 import zipfile
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from email import message_from_bytes, policy
 from email.message import Message
 from pathlib import Path
 
-
-@dataclass(frozen=True)
-class EmailRecord:
-    body: str
-    address: str = ""
-    sent_at: datetime | None = None
-    subject: str = ""
+from finsca.ingest.alerts import AlertRecord
+from finsca.ingest.errors import ParseError
 
 
-def load_email(path: Path) -> list[EmailRecord]:
+def load_email(path: Path) -> list[AlertRecord]:
     suffix = path.suffix.lower()
-    if suffix == ".eml":
-        return [_from_message(message_from_bytes(path.read_bytes(), policy=policy.default))]
-    if suffix == ".mbox":
-        return [_from_message(msg) for msg in mailbox.mbox(str(path))]
-    if suffix == ".zip":
-        return _from_zip(path)
-    raise ValueError(f"unsupported email dump: {path.suffix}")
+    try:
+        if suffix == ".eml":
+            return [_from_message(message_from_bytes(path.read_bytes(), policy=policy.default))]
+        if suffix == ".mbox":
+            return [_from_message(msg) for msg in mailbox.mbox(str(path))]
+        if suffix == ".zip":
+            return _from_zip(path)
+        raise ParseError(f"unsupported email dump: {path.suffix}")
+    except ParseError:
+        raise
+    except Exception as exc:
+        raise ParseError(f"could not read email dump: {exc}") from exc
 
 
-def _from_zip(path: Path) -> list[EmailRecord]:
-    records: list[EmailRecord] = []
+def _from_zip(path: Path) -> list[AlertRecord]:
+    records: list[AlertRecord] = []
     with zipfile.ZipFile(path) as bundle:
         for name in bundle.namelist():
             lower = name.lower()
@@ -37,8 +37,6 @@ def _from_zip(path: Path) -> list[EmailRecord]:
                 msg = message_from_bytes(bundle.read(name), policy=policy.default)
                 records.append(_from_message(msg))
             elif lower.endswith(".mbox"):
-                import tempfile
-
                 extracted = bundle.read(name)
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".mbox") as handle:
                     handle.write(extracted)
@@ -50,12 +48,14 @@ def _from_zip(path: Path) -> list[EmailRecord]:
     return records
 
 
-def _from_message(msg: Message) -> EmailRecord:
-    return EmailRecord(
-        body=_plain_body(msg),
+def _from_message(msg: Message) -> AlertRecord:
+    subject = str(msg.get("Subject") or "").strip()
+    body = _plain_body(msg)
+    blob = f"{subject}\n{body}".strip() if subject else body
+    return AlertRecord(
+        body=blob,
         address=str(msg.get("From") or ""),
         sent_at=_msg_date(msg),
-        subject=str(msg.get("Subject") or ""),
     )
 
 

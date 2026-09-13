@@ -3,38 +3,38 @@ from __future__ import annotations
 import csv
 import json
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-
-@dataclass(frozen=True)
-class SmsRecord:
-    body: str
-    address: str = ""
-    sent_at: datetime | None = None
+from finsca.ingest.alerts import AlertRecord
+from finsca.ingest.errors import ParseError
 
 
-def load_sms(path: Path) -> list[SmsRecord]:
+def load_sms(path: Path) -> list[AlertRecord]:
     suffix = path.suffix.lower()
-    if suffix == ".xml":
-        return _from_xml(path)
-    if suffix == ".json":
-        return _from_json(path)
-    if suffix == ".csv":
-        return _from_csv(path)
-    raise ValueError(f"unsupported SMS dump: {path.suffix}")
+    try:
+        if suffix == ".xml":
+            return _from_xml(path)
+        if suffix == ".json":
+            return _from_json(path)
+        if suffix == ".csv":
+            return _from_csv(path)
+        raise ParseError(f"unsupported SMS dump: {path.suffix}")
+    except ParseError:
+        raise
+    except Exception as exc:
+        raise ParseError(f"could not read SMS dump: {exc}") from exc
 
 
-def _from_xml(path: Path) -> list[SmsRecord]:
+def _from_xml(path: Path) -> list[AlertRecord]:
     root = ET.parse(path).getroot()
-    records: list[SmsRecord] = []
+    records: list[AlertRecord] = []
     for node in root.iter("sms"):
         body = (node.attrib.get("body") or "").strip()
         if not body:
             continue
         records.append(
-            SmsRecord(
+            AlertRecord(
                 body=body,
                 address=node.attrib.get("address") or "",
                 sent_at=_millis(node.attrib.get("date")),
@@ -43,11 +43,11 @@ def _from_xml(path: Path) -> list[SmsRecord]:
     return records
 
 
-def _from_json(path: Path) -> list[SmsRecord]:
+def _from_json(path: Path) -> list[AlertRecord]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if isinstance(payload, dict):
         payload = payload.get("sms") or payload.get("messages") or []
-    records: list[SmsRecord] = []
+    records: list[AlertRecord] = []
     for item in payload:
         if not isinstance(item, dict):
             continue
@@ -55,7 +55,7 @@ def _from_json(path: Path) -> list[SmsRecord]:
         if not body:
             continue
         records.append(
-            SmsRecord(
+            AlertRecord(
                 body=body,
                 address=str(item.get("address") or item.get("from") or item.get("sender") or ""),
                 sent_at=_parse_when(item.get("date") or item.get("timestamp") or item.get("datetime")),
@@ -64,17 +64,17 @@ def _from_json(path: Path) -> list[SmsRecord]:
     return records
 
 
-def _from_csv(path: Path) -> list[SmsRecord]:
+def _from_csv(path: Path) -> list[AlertRecord]:
     with path.open(newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
-        records: list[SmsRecord] = []
+        records: list[AlertRecord] = []
         for raw in reader:
-            row = { (key or "").strip().lower(): (value or "").strip() for key, value in raw.items() }
+            row = {(key or "").strip().lower(): (value or "").strip() for key, value in raw.items()}
             body = row.get("body") or row.get("message") or row.get("text") or row.get("sms") or ""
             if not body:
                 continue
             records.append(
-                SmsRecord(
+                AlertRecord(
                     body=body,
                     address=row.get("address") or row.get("from") or row.get("sender") or "",
                     sent_at=_parse_when(row.get("date") or row.get("timestamp") or row.get("datetime")),

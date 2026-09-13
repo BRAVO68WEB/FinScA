@@ -1,13 +1,16 @@
-"""Cross-source same-event identity: account + date + signed amount."""
+"""One event identity: account + calendar date + signed paise."""
 
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal
 
+from finsca.core.ids import content_hash
 from finsca.core.money import to_paise
 
 
 def event_fingerprint(account_id: str, posted_at: datetime, amount: Decimal) -> tuple[str, str, int]:
-    day = posted_at.date() if isinstance(posted_at, datetime) else posted_at
-    if not isinstance(day, date):
-        raise TypeError("posted_at must be a datetime or date")
-    return (account_id, day.isoformat(), to_paise(amount))
+    return (account_id, posted_at.date().isoformat(), to_paise(amount))
+
+
+def event_hash(account_id: str, posted_at: datetime, amount: Decimal) -> str:
+    account, day, paise = event_fingerprint(account_id, posted_at, amount)
+    return content_hash(account, day, str(paise))

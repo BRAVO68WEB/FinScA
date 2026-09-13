@@ -44,12 +44,12 @@ def test_persist_creates_account_month_and_txs(db_session: Session) -> None:
     result = persist_batch(db_session, _batch(), run_id="run1")
     assert result.inserted == 2
     assert result.pending_review == 1
-    assert result.account.last4 == "4521"
-    months = account_repo.list_months(db_session, account_id=result.account.id)
+    account = account_repo.list_by_last4(db_session, "4521")[0]
+    months = account_repo.list_months(db_session, account_id=account.id)
     assert len(months) == 1
     assert months[0].source == MonthSource.STATEMENT
     assert months[0].closing == Decimal("22250.00")
-    txs = tx_repo.list_for_account(db_session, result.account.id)
+    txs = tx_repo.list_for_account(db_session, account.id)
     assert len(txs) == 2
     assert txs[0].source_kind == SourceKind.PDF
 
@@ -59,10 +59,8 @@ def test_persist_reuses_existing_account_and_dedupes(db_session: Session) -> Non
         db_session,
         Account(display_name="HDFC Salary", type=AccountType.SAVINGS, institution="HDFC", last4="4521"),
     )
-    first = persist_batch(db_session, _batch(), run_id="run1")
+    persist_batch(db_session, _batch(), run_id="run1")
     second = persist_batch(db_session, _batch(), run_id="run2")
-    assert first.account.id == existing.id
-    assert second.account.id == existing.id
     assert second.dupes == 2
     assert second.inserted == 0
     assert len(tx_repo.list_for_account(db_session, existing.id)) == 2

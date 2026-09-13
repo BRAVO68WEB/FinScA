@@ -4,8 +4,8 @@ from decimal import Decimal
 from pathlib import Path
 
 from finsca.core.enums import Channel, SourceKind
-from finsca.ingest.sms.parse import parse_sms_file
-from finsca.ingest.sms.templates import parse_alert
+from finsca.ingest.alerts import alerts_to_batch, parse_alert
+from finsca.ingest.sms.loaders import load_sms
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "sms"
 
@@ -28,7 +28,7 @@ def test_parse_hdfc_credit_alert() -> None:
 
 
 def test_parse_sms_xml_dump() -> None:
-    batch = parse_sms_file(FIXTURES / "hdfc_alerts.xml")
+    batch = alerts_to_batch(load_sms(FIXTURES / "hdfc_alerts.xml"), SourceKind.SMS, "sms")
     assert batch.source_kind is SourceKind.SMS
     assert len(batch.lines) == 2
     assert {line.last4 for line in batch.lines} == {"4521"}
