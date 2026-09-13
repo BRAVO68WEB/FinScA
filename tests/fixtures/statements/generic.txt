@@ -1,0 +1,6 @@
+Statement Period: 01/08/2026 to 31/08/2026
+A/c No: XX4521
+Opening Balance: 10000.00
+01/08/2026 UPI-SWIGGY 250.00 Dr
+04/08/2026 NEFT SALARY 12500.00 Cr
+Closing Balance: 22250.00

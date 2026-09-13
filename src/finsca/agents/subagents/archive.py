@@ -1,1 +1,1 @@
-"""Archive inbox after a run — Phase 2."""
+"""Archive subagent. The pipeline calls archive.mover directly."""

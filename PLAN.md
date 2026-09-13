@@ -629,9 +629,9 @@ Each phase is independently reviewable and leaves the CLI runnable.
 Domain models, repositories, `Account` / `AccountMonth` / `Transaction` CRUD, money helpers.
 **Exit:** `finsca accounts add` works. **Done** — see [PROGRESS.md](PROGRESS.md).
 
-### Phase 2 — PDF ingest + archive
+### Phase 2 — PDF ingest + archive ✅
 Detect + 1–2 bank parsers + generic fallback stub, ingest pipeline up to persist, archive mover.
-**Exit:** drop a statement PDF → txs + official open/close → inbox empty.
+**Exit:** drop a statement PDF → txs + official open/close → inbox empty. **Done** — see [PROGRESS.md](PROGRESS.md).
 
 ### Phase 3 — SMS + email files
 Loaders + Indian SMS templates + eml/mbox bank-alert parser. Dedupe across sources.
@@ -677,4 +677,4 @@ HDFC/ICICI/SBI/Axis coverage, replay, better fingerprints.
 
 Live status, checklists, and the changelog are in **[PROGRESS.md](PROGRESS.md)**. This section only names the next planned slice so the design doc stays stable.
 
-**Next implementation slice:** Phase 2 — PDF ingest + archive.
+**Next implementation slice:** Phase 3 — SMS + email files.
