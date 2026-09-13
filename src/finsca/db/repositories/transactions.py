@@ -144,6 +144,41 @@ def apply_review(
     return transaction_from_row(row)
 
 
+def list_unlabeled(session: Session) -> list[Transaction]:
+    rows = session.scalars(
+        select(tables.Transaction)
+        .where(
+            tables.Transaction.category.is_(None),
+            tables.Transaction.intent.notin_(
+                (Intent.SELF_TRANSFER.value, Intent.TRANSFER.value)
+            ),
+        )
+        .order_by(tables.Transaction.posted_at)
+    ).all()
+    return [transaction_from_row(row) for row in rows]
+
+
+def set_label(
+    session: Session,
+    tx_id: str,
+    category: Category,
+    *,
+    source: LabelSource,
+    confidence: float | None = None,
+    intent: Intent | None = None,
+) -> Transaction:
+    row = session.get(tables.Transaction, tx_id)
+    if row is None:
+        raise KeyError(tx_id)
+    row.category = category.value
+    row.label_source = source.value
+    row.label_confidence = confidence
+    if intent is not None:
+        row.intent = intent.value
+    session.flush()
+    return transaction_from_row(row)
+
+
 def list_for_account(session: Session, account_id: str) -> list[Transaction]:
     rows = session.scalars(
         select(tables.Transaction)

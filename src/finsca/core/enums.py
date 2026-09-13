@@ -49,6 +49,7 @@ class MonthSource(StrEnum):
 
 class LabelSource(StrEnum):
     RULE = "rule"
+    TAXONOMY = "taxonomy"
     MODEL = "model"
     MANUAL = "manual"
 
