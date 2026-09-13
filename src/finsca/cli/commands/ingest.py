@@ -7,7 +7,7 @@ from finsca.cli.render import console
 from finsca.config.settings import Settings
 from finsca.db.runtime import db_session
 
-app = typer.Typer(help="Ingest inbox PDFs into the ledger and archive them.")
+app = typer.Typer(help="Ingest inbox PDFs, email, and SMS dumps into the ledger.")
 
 
 @app.callback(invoke_without_command=True)
@@ -30,4 +30,4 @@ def ingest() -> None:
     for item in summary.failed:
         console.print(f"[red]failed   {item.path.name}: {item.error}[/red]")
     if not summary.failed:
-        console.print("inbox    pdf=0")
+        console.print("inbox    pdf=0  email=0  sms=0")

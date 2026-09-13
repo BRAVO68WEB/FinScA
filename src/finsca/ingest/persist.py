@@ -1,54 +1,90 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from finsca.core.enums import IncomeReview, Intent, MonthSource, SourceKind
+from finsca.core.enums import IncomeReview, Intent, MonthSource
 from finsca.core.models import Account, AccountMonth, Transaction
 from finsca.db.repositories import accounts as account_repo
 from finsca.db.repositories import transactions as tx_repo
-from finsca.db.repositories.transactions import DuplicateTransactionError
 from finsca.ingest.errors import ParseError
 from finsca.ingest.pdf.header import account_display_name
-from finsca.ingest.types import AccountHint, ParsedBatch
+from finsca.ingest.types import AccountHint, ParsedBatch, ParsedLine
 
 
 @dataclass(frozen=True)
 class PersistResult:
-    account: Account
     inserted: int
     dupes: int
     pending_review: int
 
 
 def persist_batch(session: Session, batch: ParsedBatch, run_id: str) -> PersistResult:
-    account = find_or_create_account(session, batch.account)
-    if account.id is None:
-        raise RuntimeError("persisted account missing id")
-    _write_month(session, account.id, batch)
+    groups = _group_lines(batch)
+    if not groups:
+        raise ParseError("statement has no account last4")
     inserted = dupes = pending = 0
+    accounts: dict[str, Account] = {}
+    for hint, lines in groups:
+        account = find_or_create_account(session, hint)
+        if account.id is None:
+            raise RuntimeError("persisted account missing id")
+        accounts[hint.last4 or ""] = account
+        for line in lines:
+            payload = Transaction(
+                account_id=account.id,
+                posted_at=line.posted_at,
+                amount=line.amount,
+                description_raw=line.description,
+                channel=line.channel,
+                source_kind=batch.source_kind,
+                ingest_run_id=run_id,
+                intent=Intent.UNKNOWN,
+                income_review=IncomeReview.PENDING if line.amount > 0 else IncomeReview.SKIPPED,
+            )
+            _, is_new = tx_repo.add_event(session, payload)
+            if is_new:
+                inserted += 1
+                if line.amount > 0:
+                    pending += 1
+            else:
+                dupes += 1
+    if batch.opening is not None and batch.closing is not None:
+        last4 = batch.account.last4
+        if not last4 or last4 not in accounts:
+            raise ParseError("statement has balances but no account last4")
+        account_id = accounts[last4].id
+        if not account_id:
+            raise RuntimeError("persisted account missing id")
+        _write_month(session, account_id, batch)
+    return PersistResult(inserted=inserted, dupes=dupes, pending_review=pending)
+
+
+def _group_lines(batch: ParsedBatch) -> list[tuple[AccountHint, list[ParsedLine]]]:
+    buckets: dict[tuple[str, str | None], list[ParsedLine]] = defaultdict(list)
     for line in batch.lines:
-        credit = line.amount > 0
-        payload = Transaction(
-            account_id=account.id,
-            posted_at=line.posted_at,
-            amount=line.amount,
-            description_raw=line.description,
-            channel=line.channel,
-            source_kind=SourceKind.PDF,
-            ingest_run_id=run_id,
-            intent=Intent.UNKNOWN,
-            income_review=IncomeReview.PENDING if credit else IncomeReview.SKIPPED,
+        last4 = line.last4 or batch.account.last4
+        if not last4:
+            continue
+        institution = line.institution or batch.account.institution
+        buckets[(last4, institution)].append(line)
+    groups: list[tuple[AccountHint, list[ParsedLine]]] = []
+    for (last4, institution), lines in buckets.items():
+        display = batch.account.display_name if last4 == batch.account.last4 else None
+        groups.append(
+            (
+                AccountHint(
+                    last4=last4,
+                    institution=institution,
+                    display_name=display or account_display_name(institution, last4),
+                    account_type=batch.account.account_type,
+                ),
+                lines,
+            )
         )
-        try:
-            tx_repo.add(session, payload)
-            inserted += 1
-            if credit:
-                pending += 1
-        except DuplicateTransactionError:
-            dupes += 1
-    return PersistResult(account=account, inserted=inserted, dupes=dupes, pending_review=pending)
+    return groups
 
 
 def find_or_create_account(session: Session, hint: AccountHint) -> Account:
@@ -81,10 +117,8 @@ def find_or_create_account(session: Session, hint: AccountHint) -> Account:
 
 
 def _write_month(session: Session, account_id: str, batch: ParsedBatch) -> None:
-    if batch.opening is None or batch.closing is None:
-        return
     period = batch.period_end or batch.period_start
-    if period is None:
+    if period is None or batch.opening is None or batch.closing is None:
         return
     account_repo.set_month(
         session,

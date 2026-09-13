@@ -1,1 +1,1 @@
-"""Indian bank SMS regexes — Phase 3."""
+"""Bank-alert grammar lives in ingest.alerts."""

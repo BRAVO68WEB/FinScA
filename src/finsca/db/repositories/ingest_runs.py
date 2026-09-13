@@ -24,7 +24,7 @@ def add_file(session: Session, run_id: str, item: IngestFileResult) -> tables.In
         ingest_run_id=run_id,
         original_name=item.path.name,
         sha256=item.sha256,
-        kind="pdf",
+        kind=(item.kind.value if item.kind else "pdf"),
         parser=item.parser,
         tx_count=item.tx_count,
         warning=item.warning or item.error,

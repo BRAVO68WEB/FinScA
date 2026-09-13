@@ -3,11 +3,13 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from finsca.core.ids import content_hash, new_id
+from finsca.core.enums import SourceKind
+from finsca.core.ids import new_id
 from finsca.core.models import Transaction
 from finsca.core.money import to_paise
 from finsca.db import schema as tables
 from finsca.db.mapping import transaction_from_row
+from finsca.finance.dedupe import event_hash
 from finsca.finance.normalize import normalize_description
 
 
@@ -17,22 +19,20 @@ class DuplicateTransactionError(ValueError):
         super().__init__(f"duplicate transaction {existing.content_hash}")
 
 
-def hash_for(tx: Transaction, description_norm: str) -> str:
-    return content_hash(
-        tx.account_id,
-        tx.posted_at.date().isoformat(),
-        str(to_paise(tx.amount)),
-        description_norm[:48],
-        tx.source_kind.value,
-    )
-
-
 def add(session: Session, payload: Transaction) -> Transaction:
+    created, is_new = add_event(session, payload)
+    if not is_new:
+        raise DuplicateTransactionError(created)
+    return created
+
+
+def add_event(session: Session, payload: Transaction) -> tuple[Transaction, bool]:
     description_norm = payload.description_norm or normalize_description(payload.description_raw)
-    digest = payload.content_hash or hash_for(payload, description_norm)
+    digest = payload.content_hash or event_hash(payload.account_id, payload.posted_at, payload.amount)
     existing = get_by_hash(session, digest)
     if existing is not None:
-        raise DuplicateTransactionError(existing)
+        enrich_source(session, existing, payload.source_kind)
+        return existing, False
     row = tables.Transaction(
         id=new_id(),
         account_id=payload.account_id,
@@ -52,7 +52,7 @@ def add(session: Session, payload: Transaction) -> Transaction:
         gst_amount_paise=to_paise(payload.gst_amount) if payload.gst_amount is not None else None,
         gst_source=payload.gst_source.value,
         source_kind=payload.source_kind.value,
-        source_ref=payload.source_ref,
+        source_ref=payload.source_ref or payload.source_kind.value,
         content_hash=digest,
         ingest_run_id=payload.ingest_run_id,
         duplicate_of_id=payload.duplicate_of_id,
@@ -64,7 +64,7 @@ def add(session: Session, payload: Transaction) -> Transaction:
     )
     session.add(row)
     session.flush()
-    return transaction_from_row(row)
+    return transaction_from_row(row), True
 
 
 def get(session: Session, transaction_id: str) -> Transaction | None:
@@ -75,6 +75,20 @@ def get(session: Session, transaction_id: str) -> Transaction | None:
 def get_by_hash(session: Session, digest: str) -> Transaction | None:
     row = session.scalar(select(tables.Transaction).where(tables.Transaction.content_hash == digest))
     return transaction_from_row(row) if row else None
+
+
+def enrich_source(session: Session, existing: Transaction, source_kind: SourceKind) -> Transaction:
+    if existing.id is None:
+        return existing
+    row = session.get(tables.Transaction, existing.id)
+    if row is None:
+        return existing
+    tag = source_kind.value
+    seen = (row.source_ref or row.source_kind).split(";")
+    if tag not in seen:
+        row.source_ref = ";".join([*seen, tag])
+        session.flush()
+    return transaction_from_row(row)
 
 
 def list_for_account(session: Session, account_id: str) -> list[Transaction]:

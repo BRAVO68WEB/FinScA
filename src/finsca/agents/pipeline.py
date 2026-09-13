@@ -6,24 +6,25 @@ from sqlalchemy.orm import Session
 
 from finsca.archive.mover import archive_successes, planned_archive_dir, write_error_sidecar
 from finsca.config.settings import Settings
-from finsca.core.enums import IngestStatus
+from finsca.core.enums import IngestStatus, SourceKind
 from finsca.core.ids import file_sha256
 from finsca.db.repositories import ingest_runs
-from finsca.ingest.detect import detect_bank, list_inbox_pdfs
+from finsca.ingest.detect import list_inbox_files
+from finsca.ingest.dispatch import parse_inbox_file
 from finsca.ingest.errors import ParseError
-from finsca.ingest.pdf.base import parse_statement
-from finsca.ingest.pdf.text_extract import extract_text
 from finsca.ingest.persist import persist_batch
 from finsca.ingest.types import IngestFileResult, IngestSummary
 
 
 def run_ingest(session: Session, settings: Settings) -> IngestSummary:
-    pdfs = list_inbox_pdfs(settings.inbox_dir)
-    if not pdfs:
+    incoming = list_inbox_files(settings.inbox_dir)
+    if not incoming:
         return IngestSummary(empty=True)
 
     run = ingest_runs.start(session)
-    results = [_ingest_one(session, path, run.id) for path in pdfs]
+    results = [
+        _ingest_one(session, path, kind, run.id, settings.inbox_dir) for path, kind in incoming
+    ]
     successes = [item for item in results if item.error is None]
     failures = [item for item in results if item.error is not None]
 
@@ -63,16 +64,18 @@ def run_ingest(session: Session, settings: Settings) -> IngestSummary:
     )
 
 
-def _ingest_one(session: Session, path: Path, run_id: str) -> IngestFileResult:
+def _ingest_one(
+    session: Session,
+    path: Path,
+    kind: SourceKind,
+    run_id: str,
+    inbox_dir: Path,
+) -> IngestFileResult:
     digest = file_sha256(path)
+    relpath = _relpath(path, inbox_dir)
     try:
         with session.begin_nested():
-            text = extract_text(path)
-            if not text:
-                raise ParseError("PDF contained no extractable text")
-            batch = parse_statement(text, detect_bank(text))
-            if not batch.lines:
-                raise ParseError("no transactions parsed")
+            batch = parse_inbox_file(path, kind)
             persisted = persist_batch(session, batch, run_id)
         warning = "; ".join(batch.warnings) if batch.warnings else None
         return IngestFileResult(
@@ -83,10 +86,19 @@ def _ingest_one(session: Session, path: Path, run_id: str) -> IngestFileResult:
             dupe_count=persisted.dupes,
             pending_review=persisted.pending_review,
             warning=warning,
+            kind=kind,
+            relpath=relpath,
         )
     except ParseError as exc:
         write_error_sidecar(path, str(exc))
-        return IngestFileResult(path=path, sha256=digest, error=str(exc))
+        return IngestFileResult(path=path, sha256=digest, error=str(exc), kind=kind, relpath=relpath)
+
+
+def _relpath(path: Path, inbox_dir: Path) -> str:
+    try:
+        return str(path.relative_to(inbox_dir))
+    except ValueError:
+        return path.name
 
 
 def _status(successes: list[IngestFileResult], failures: list[IngestFileResult]) -> IngestStatus:

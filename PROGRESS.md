@@ -3,8 +3,8 @@
 Living tracker. The design stays in [PLAN.md](PLAN.md). Update this file when a phase starts, lands, or is blocked.
 
 **Last updated:** 2026-09-13  
-**Current phase:** 3 — SMS + email files (not started)  
-**Last completed:** Phase 2 — PDF ingest + archive
+**Current phase:** 4 — Self-transfer + review queue (not started)  
+**Last completed:** Phase 3 — SMS + email files
 
 ---
 
@@ -15,7 +15,7 @@ Living tracker. The design stays in [PLAN.md](PLAN.md). Update this file when a 
 | 0 | Skeleton | **done** |
 | 1 | Ledger core | **done** |
 | 2 | PDF ingest + archive | **done** |
-| 3 | SMS + email files | not started |
+| 3 | SMS + email files | **done** |
 | 4 | Self-transfer + review queue | not started |
 | 5 | Labeling | not started |
 | 6 | Loans / EMI | not started |
@@ -103,21 +103,43 @@ Branch: `phase-2-pdf-ingest`
 
 ---
 
-## Phase 3 — SMS + email files (next)
+## Phase 3 — SMS + email files
 
-**Exit:** same UPI hit in SMS + PDF is one row.
+**Exit:** same UPI hit in SMS + PDF is one row. **Met.**
+
+Shipped:
+
+- [x] SMS XML / CSV / JSON loaders
+- [x] Indian bank-alert templates (amount, last4, date, debit/credit)
+- [x] eml / mbox / zip email loaders, same templates
+- [x] Cross-source same-event merge (account + date + amount)
+- [x] Hash no longer includes source kind
+- [x] Inbox ingest for pdf + email + sms; archive keeps relative paths
+
+Verified:
+
+- `pytest` — 43 passed
+- PDF then SMS: `dupes=2`, still one UPI debit and one NEFT credit
+
+Branch: `phase-3-sms-email`
+
+---
+
+## Phase 4 — Self-transfer + review queue (next)
+
+**Exit:** own-account hop does not inflate income; user can mark a credit.
 
 Still to do:
 
-- [ ] SMS XML/CSV/JSON loaders + Indian bank templates
-- [ ] eml/mbox bank-alert parser
-- [ ] Cross-source dedupe
+- [ ] `finance/self_transfer.py` matcher
+- [ ] `finsca review` income vs transfer
+- [ ] Rule writer from review answers
 
 ---
 
 ## Later phases
 
-Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 4 until Phase 3’s exit works.
+Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 5 until Phase 4’s exit works.
 
 ---
 
@@ -132,3 +154,5 @@ Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 4 
 - Review fixes on `phase-1-ledger-core`: one DTO per entity, JSON alias/VPA lists, id-prefix resolve, statement-wins `set_month`, flattened `accounts set-month`, unique transaction hash.
 - Merged Phase 1 to main. Implemented Phase 2 on `phase-2-pdf-ingest`.
 - Phase 2 review: commit then archive, savepoint per file, require last4, header vs line parse, drop unused subagent wrappers.
+- Implemented Phase 3 on `phase-3-sms-email`: SMS/email ingest + cross-source dedupe.
+- Phase 3 review: one event_key (account+date+paise), AlertRecord pipeline, persist months only with balances, loaders raise ParseError.

@@ -21,10 +21,13 @@ class ParsedLine(BaseModel):
     amount: Decimal
     description: str
     channel: Channel = Channel.OTHER
+    last4: str | None = None
+    institution: str | None = None
 
 
 class ParsedBatch(BaseModel):
     parser: str
+    source_kind: SourceKind = SourceKind.PDF
     account: AccountHint = Field(default_factory=AccountHint)
     period_start: date | None = None
     period_end: date | None = None
@@ -44,6 +47,8 @@ class IngestFileResult(BaseModel):
     warning: str | None = None
     error: str | None = None
     archived_as: str | None = None
+    kind: SourceKind | None = None
+    relpath: str | None = None
 
 
 class IngestSummary(BaseModel):

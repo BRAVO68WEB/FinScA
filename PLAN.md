@@ -633,9 +633,9 @@ Domain models, repositories, `Account` / `AccountMonth` / `Transaction` CRUD, mo
 Detect + 1–2 bank parsers + generic fallback stub, ingest pipeline up to persist, archive mover.
 **Exit:** drop a statement PDF → txs + official open/close → inbox empty. **Done** — see [PROGRESS.md](PROGRESS.md).
 
-### Phase 3 — SMS + email files
+### Phase 3 — SMS + email files ✅
 Loaders + Indian SMS templates + eml/mbox bank-alert parser. Dedupe across sources.
-**Exit:** same UPI hit in SMS + PDF is one row.
+**Exit:** same UPI hit in SMS + PDF is one row. **Done** — see [PROGRESS.md](PROGRESS.md).
 
 ### Phase 4 — Self-transfer + review queue
 Pure matcher + `finsca review` for income vs transfer + rule writer.
@@ -677,4 +677,4 @@ HDFC/ICICI/SBI/Axis coverage, replay, better fingerprints.
 
 Live status, checklists, and the changelog are in **[PROGRESS.md](PROGRESS.md)**. This section only names the next planned slice so the design doc stays stable.
 
-**Next implementation slice:** Phase 3 — SMS + email files.
+**Next implementation slice:** Phase 4 — self-transfer + review queue.

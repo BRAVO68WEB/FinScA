@@ -19,9 +19,9 @@ def test_ingest_pdf_persists_and_archives(data_dir: Path) -> None:
     assert result.exit_code == 0, result.output
     assert "parsed" in result.output
     assert not pdf_path.exists()
-    archives = list((data_dir / "archive").glob("*/hdfc-aug.pdf"))
+    archives = list((data_dir / "archive").glob("**/hdfc-aug.pdf"))
     assert len(archives) == 1
-    assert (archives[0].parent / "manifest.json").exists()
+    assert (archives[0].parents[1] / "manifest.json").exists()
     listed = runner.invoke(app, ["accounts", "list"])
     assert listed.exit_code == 0, listed.output
     assert "4521" in listed.output
@@ -50,6 +50,21 @@ def test_ingest_keeps_ledger_if_archive_fails(data_dir: Path, monkeypatch) -> No
     assert pdf_path.exists()
     listed = runner.invoke(app, ["accounts", "list"])
     assert "4521" in listed.output
+
+
+def test_ingest_sms_after_pdf_does_not_double_count(data_dir: Path) -> None:
+    write_text_pdf(data_dir / "inbox" / "pdf" / "hdfc-aug.pdf", (FIXTURES / "hdfc.txt").read_text())
+    first = runner.invoke(app, ["ingest"])
+    assert first.exit_code == 0, first.output
+    sms_src = Path(__file__).resolve().parents[1] / "fixtures" / "sms" / "hdfc_alerts.xml"
+    sms_dest = data_dir / "inbox" / "sms" / "hdfc_alerts.xml"
+    sms_dest.write_bytes(sms_src.read_bytes())
+    second = runner.invoke(app, ["ingest"])
+    assert second.exit_code == 0, second.output
+    assert "dupes=2" in second.output
+    assert not sms_dest.exists()
+    months = runner.invoke(app, ["accounts", "months", "--account", "4521"])
+    assert "22250.00" in months.output
 
 
 def test_ingest_rejects_pdf_without_last4(data_dir: Path) -> None:

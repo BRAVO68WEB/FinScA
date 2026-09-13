@@ -1,1 +1,1 @@
-"""Bank-alert and invoice mail parsers — Phase 3."""
+"""Email file parse lives in ingest.alerts + ingest.email.mailbox."""
