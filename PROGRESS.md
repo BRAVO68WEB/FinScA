@@ -3,8 +3,8 @@
 Living tracker. The design stays in [PLAN.md](PLAN.md). Update this file when a phase starts, lands, or is blocked.
 
 **Last updated:** 2026-09-13  
-**Current phase:** 7 — Report (not started)  
-**Last completed:** Phase 6 — Loans / EMI
+**Current phase:** 8 — LLM router + ask (not started)  
+**Last completed:** Phase 7 — Report
 
 ---
 
@@ -19,7 +19,7 @@ Living tracker. The design stays in [PLAN.md](PLAN.md). Update this file when a 
 | 4 | Self-transfer + review queue | **done** |
 | 5 | Labeling | **done** |
 | 6 | Loans / EMI | **done** |
-| 7 | Report | not started |
+| 7 | Report | **done** |
 | 8 | LLM router + ask | not started |
 | 9 | Extra bank parsers + polish | not started |
 
@@ -187,21 +187,40 @@ Branch: `phase-6-loans`
 
 ---
 
-## Phase 7 — Report (next)
+## Phase 7 — Report
 
-**Exit:** monthly cash-flow, habits, DC/CC/UPI, salary, GST, health, graphs.
+**Exit:** monthly cash-flow, habits, DC/CC/UPI, salary, GST, health, graphs. **Met.**
+
+Shipped:
+
+- [x] Pure cashflow / habits / channel mix / salary / GST / health
+- [x] `finsca report [--month YYYY-MM] [--html]`
+- [x] Unicode bars + optional HTML export
+- [x] Transfers excluded; missing health inputs shown as n/a
+
+Verified:
+
+- `pytest` — 69 passed
+- `finsca report --month 2026-08` on the 3-bank ledger
+
+Branch: `phase-7-report`
+
+---
+
+## Phase 8 — LLM router + ask (next)
+
+**Exit:** `finsca ask` answers from the ledger.
 
 Still to do:
 
-- [ ] Cash flow + habits + channel mix
-- [ ] Salary cycle, GST %, health score
-- [ ] `finsca report --month` + plotext / HTML
+- [ ] Wire Grok/OpenAI router for ask
+- [ ] Monthly narrative over computed numbers
 
 ---
 
 ## Later phases
 
-Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 8 until Phase 7’s exit works.
+Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 9 until Phase 8’s exit works.
 
 ---
 
@@ -225,3 +244,4 @@ Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 8 
 - Phase 5 review: MerchantHint in finance/, decide()+TAXONOMY source, compact_complete hook, compact leftovers in 25s.
 - Merged Phase 5. Implemented Phase 6 on `phase-6-loans`.
 - Phase 6 review: EMI/NACH signal required, upsert by loan+month, label_source=taxonomy.
+- Merged Phase 6. Implemented Phase 7 on `phase-7-report`.
