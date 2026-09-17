@@ -9,6 +9,11 @@ def test_detect_hdfc_from_header() -> None:
     assert detect_bank("HDFC BANK\nAccount No : 1234") == "hdfc"
 
 
+def test_detect_prefers_filename_over_payee_text() -> None:
+    text = "Opening Balance 1.00\n03-08-2026 UPI/P2M/1/NETFLIX C/HDFC BANK 649.00\n"
+    assert detect_bank(text, "1a06_statements_axis.bank.in_AXIS BANK Statement.pdf") == "axis"
+
+
 def test_detect_unknown_bank() -> None:
     assert detect_bank("Some random brokerage statement") is None
 

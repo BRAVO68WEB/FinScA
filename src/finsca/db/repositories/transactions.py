@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from finsca.core.enums import Category, IncomeReview, Intent, LabelSource, SourceKind
+from finsca.core.enums import AccountType, Category, IncomeReview, Intent, LabelSource, SourceKind
 from finsca.core.ids import new_id
 from finsca.core.models import Transaction
 from finsca.core.money import to_paise
@@ -72,6 +72,24 @@ def get(session: Session, transaction_id: str) -> Transaction | None:
     return transaction_from_row(row) if row else None
 
 
+def delete(session: Session, transaction_id: str) -> Transaction | None:
+    row = session.get(tables.Transaction, transaction_id)
+    if row is None:
+        return None
+    snapshot = transaction_from_row(row)
+    for emi in session.scalars(
+        select(tables.EmiOccurrence).where(tables.EmiOccurrence.transaction_id == transaction_id)
+    ):
+        emi.transaction_id = None
+    for other in session.scalars(
+        select(tables.Transaction).where(tables.Transaction.duplicate_of_id == transaction_id)
+    ):
+        other.duplicate_of_id = None
+    session.delete(row)
+    session.flush()
+    return snapshot
+
+
 def get_by_hash(session: Session, digest: str) -> Transaction | None:
     row = session.scalar(select(tables.Transaction).where(tables.Transaction.content_hash == digest))
     return transaction_from_row(row) if row else None
@@ -99,13 +117,34 @@ def list_all(session: Session) -> list[Transaction]:
 def list_pending_review(session: Session) -> list[Transaction]:
     rows = session.scalars(
         select(tables.Transaction)
+        .join(tables.Account, tables.Transaction.account_id == tables.Account.id)
         .where(
             tables.Transaction.income_review == IncomeReview.PENDING.value,
             tables.Transaction.amount_paise > 0,
+            tables.Account.type != AccountType.CREDIT_CARD.value,
         )
         .order_by(tables.Transaction.posted_at)
     ).all()
     return [transaction_from_row(row) for row in rows]
+
+
+def close_credit_card_reviews(session: Session) -> int:
+    """Bill payments / refunds on a card are not income. Mark leftover reviews as transfers."""
+    rows = session.scalars(
+        select(tables.Transaction)
+        .join(tables.Account, tables.Transaction.account_id == tables.Account.id)
+        .where(
+            tables.Transaction.income_review == IncomeReview.PENDING.value,
+            tables.Transaction.amount_paise > 0,
+            tables.Account.type == AccountType.CREDIT_CARD.value,
+        )
+    ).all()
+    for row in rows:
+        row.intent = Intent.TRANSFER.value
+        row.income_review = IncomeReview.TRANSFER.value
+        row.exclude_from_cashflow = True
+    session.flush()
+    return len(rows)
 
 
 def mark_self_transfer(session: Session, debit_id: str, credit_id: str, group_id: str) -> bool:

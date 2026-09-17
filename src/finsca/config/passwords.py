@@ -34,8 +34,9 @@ def load_store(path: Path | None = None) -> list[PasswordEntry]:
         if isinstance(item, str) and item:
             entries.append(PasswordEntry(password=item))
         elif isinstance(item, dict) and item.get("password"):
-            match = item.get("match")
-            entries.append(PasswordEntry(password=str(item["password"]), match=str(match) if match else None))
+            entries.append(
+                PasswordEntry(password=str(item["password"]), match=_match_value(item.get("match")))
+            )
     return entries
 
 
@@ -64,12 +65,24 @@ def add_password(password: str, *, match: str | None = None, path: Path | None =
 def candidates_for(filename: str, entries: list[PasswordEntry], extra: str | None = None) -> list[str]:
     name = filename.lower()
     matched = [item.password for item in entries if item.match and item.match.lower() in name]
-    general = [item.password for item in entries if not item.match]
+    fallback = [item.password for item in entries if item.password not in matched]
     ordered: list[str] = []
-    for password in [*matched, *general, *([extra] if extra else [])]:
+    for password in [*matched, *fallback, *([extra] if extra else [])]:
         if password and password not in ordered:
             ordered.append(password)
     return ordered
+
+
+def _match_value(raw: object) -> str | None:
+    # YAML 1.1: `match: yes` loads as True, which would never hit "yes.bank.in".
+    if raw is True:
+        return "yes"
+    if raw is False:
+        return "no"
+    if raw is None:
+        return None
+    text = str(raw).strip()
+    return text or None
 
 
 def mask(password: str) -> str:

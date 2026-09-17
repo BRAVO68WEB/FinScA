@@ -11,7 +11,7 @@ from finsca.core.ids import file_sha256
 from finsca.db.repositories import ingest_runs
 from finsca.ingest.detect import list_inbox_files
 from finsca.ingest.dispatch import parse_inbox_file
-from finsca.ingest.errors import ParseError
+from finsca.ingest.errors import ParseError, SkipFile
 from finsca.db.repositories import transactions as tx_repo
 from finsca.ledger.apply import apply_rules, link_self_transfers
 from finsca.ledger.labeling import apply_labels
@@ -29,10 +29,12 @@ def run_ingest(session: Session, settings: Settings) -> IngestSummary:
     results = [
         _ingest_one(session, path, kind, run.id, settings) for path, kind in incoming
     ]
-    successes = [item for item in results if item.error is None]
+    successes = [item for item in results if item.error is None and not item.skipped]
+    skipped = [item for item in results if item.skipped]
     failures = [item for item in results if item.error is not None]
+    movable = [*successes, *skipped]
 
-    archive_path = planned_archive_dir(settings.archive_dir, run.id) if successes else None
+    archive_path = planned_archive_dir(settings.archive_dir, run.id) if movable else None
     parsed = sum(item.tx_count for item in successes)
     dupes = sum(item.dupe_count for item in successes)
     linked = 0
@@ -59,10 +61,12 @@ def run_ingest(session: Session, settings: Settings) -> IngestSummary:
         ingest_runs.add_file(session, run.id, item)
     session.commit()
 
-    if successes and archive_path is not None:
-        archived = archive_successes(successes, archive_path, run.id)
+    if movable and archive_path is not None:
+        archived = archive_successes(movable, archive_path, run.id)
         by_name = {item.path.name: item for item in archived}
-        results = [by_name.get(item.path.name, item) if item.error is None else item for item in results]
+        results = [
+            by_name.get(item.path.name, item) if item.error is None else item for item in results
+        ]
 
     return IngestSummary(
         run_id=run.id,
@@ -100,6 +104,17 @@ def _ingest_one(
             kind=kind,
             relpath=relpath,
         )
+    except SkipFile as exc:
+        sidecar = path.with_name(path.name + ".error.json")
+        sidecar.unlink(missing_ok=True)
+        return IngestFileResult(
+            path=path,
+            sha256=digest,
+            skipped=True,
+            warning=str(exc),
+            kind=kind,
+            relpath=relpath,
+        )
     except ParseError as exc:
         write_error_sidecar(path, str(exc))
         return IngestFileResult(path=path, sha256=digest, error=str(exc), kind=kind, relpath=relpath)
@@ -113,8 +128,8 @@ def _relpath(path: Path, inbox_dir: Path) -> str:
 
 
 def _status(successes: list[IngestFileResult], failures: list[IngestFileResult]) -> IngestStatus:
-    if successes and failures:
+    if failures and successes:
         return IngestStatus.PARTIAL
-    if successes:
-        return IngestStatus.SUCCESS
-    return IngestStatus.FAILED
+    if failures:
+        return IngestStatus.FAILED
+    return IngestStatus.SUCCESS

@@ -37,6 +37,17 @@ class GmailPullResult:
     skipped: int
 
 
+@dataclass
+class SeenIndex:
+    """message id / 12-char prefix → saved PDF names, or None if PDFs were never checked."""
+
+    pdfs: dict[str, list[str] | None]
+
+    def mark(self, message_id: str, names: list[str]) -> None:
+        self.pdfs[message_id] = names
+        self.pdfs[message_id[:12]] = names
+
+
 def credentials_path(settings: Settings) -> Path:
     return settings.data_dir / "gmail_credentials.json"
 
@@ -92,49 +103,93 @@ def pull(
     seen = load_seen(settings)
     emails = pdfs = skipped = 0
     for message_id in ids:
-        if _already_pulled(message_id, seen):
+        action = _pull_action(message_id, seen, settings)
+        if action == "skip":
             skipped += 1
             continue
         raw = _execute(service.users().messages().get(userId="me", id=message_id, format="full"))
         pulled = decode_gmail_message(raw)
         stem = safe_stem(pulled.message_id, pulled.record.address)
         eml = settings.inbox_dir / "email" / f"{stem}.eml"
-        eml.write_text(_as_eml(pulled.record), encoding="utf-8")
-        emails += 1
+        if action == "full" or not _eml_exists(settings, message_id):
+            eml.write_text(_as_eml(pulled.record), encoding="utf-8")
+            emails += 1
+        saved_names: list[str] = []
         for ref in pulled.attachments:
+            dest = settings.inbox_dir / "pdf" / f"{stem}_{Path(ref.filename).name}"
+            if dest.exists() or _pdf_exists(settings, dest.name):
+                saved_names.append(dest.name)
+                continue
             blob = _attachment_bytes(service, message_id, ref)
             if blob is None:
                 continue
-            dest = settings.inbox_dir / "pdf" / f"{stem}_{Path(ref.filename).name}"
             dest.write_bytes(blob)
+            saved_names.append(dest.name)
             pdfs += 1
-        seen.add(message_id)
+        seen.mark(message_id, saved_names)
         save_seen(settings, seen)
     return GmailPullResult(emails=emails, pdfs=pdfs, skipped=skipped)
 
 
-def load_seen(settings: Settings) -> set[str]:
+def load_seen(settings: Settings) -> SeenIndex:
     dest = seen_path(settings)
-    ids: set[str] = set()
+    pdfs: dict[str, list[str] | None] = {}
     if dest.exists():
         payload = json.loads(dest.read_text(encoding="utf-8"))
-        ids.update(payload.get("ids", []))
+        messages = payload.get("messages") or {}
+        for key, value in messages.items():
+            if isinstance(value, dict) and "pdfs" in value:
+                pdfs[key] = value["pdfs"]
+            else:
+                pdfs[key] = None
+        for key in payload.get("ids") or []:
+            pdfs.setdefault(key, None)
     for folder in (settings.inbox_dir / "email", settings.archive_dir):
         if not folder.exists():
             continue
         for path in folder.rglob("*.eml"):
             prefix = path.name.split("_", 1)[0]
             if len(prefix) >= 8:
-                ids.add(prefix)
-    return ids
+                pdfs.setdefault(prefix, None)
+    return SeenIndex(pdfs=pdfs)
 
 
-def _already_pulled(message_id: str, seen: set[str]) -> bool:
-    return message_id in seen or message_id[:12] in seen
+def _pull_action(message_id: str, seen: SeenIndex, settings: Settings) -> str:
+    recorded = seen.pdfs.get(message_id)
+    if recorded is None:
+        recorded = seen.pdfs.get(message_id[:12])
+    if recorded is not None:
+        if recorded == []:
+            return "skip"
+        if recorded and all(_pdf_exists(settings, name) for name in recorded):
+            return "skip"
+        return "pdfs"
+    if _eml_exists(settings, message_id):
+        return "pdfs"
+    return "full"
 
 
-def save_seen(settings: Settings, ids: set[str]) -> None:
-    seen_path(settings).write_text(json.dumps({"ids": sorted(ids)}, indent=2), encoding="utf-8")
+def _eml_exists(settings: Settings, message_id: str) -> bool:
+    prefix = message_id[:12]
+    for folder in (settings.inbox_dir / "email", settings.archive_dir):
+        if not folder.exists():
+            continue
+        if any(path.name.startswith(prefix) for path in folder.rglob("*.eml")):
+            return True
+    return False
+
+
+def _pdf_exists(settings: Settings, name: str) -> bool:
+    if (settings.inbox_dir / "pdf" / name).exists():
+        return True
+    if settings.archive_dir.exists():
+        return any(path.name == name for path in settings.archive_dir.rglob("*.pdf"))
+    return False
+
+
+def save_seen(settings: Settings, seen: SeenIndex) -> None:
+    messages = {key: {"pdfs": names} for key, names in sorted(seen.pdfs.items())}
+    seen_path(settings).write_text(json.dumps({"messages": messages}, indent=2), encoding="utf-8")
 
 
 def _attachment_bytes(service, message_id: str, ref: AttachmentRef) -> bytes | None:

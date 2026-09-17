@@ -25,9 +25,14 @@ def ingest() -> None:
         f"parsed   {summary.parsed_count}  dupes={summary.dupe_count}  "
         f"pending reviews={summary.pending_review_count}"
     )
+    if summary.skipped_files:
+        console.print(
+            f"skipped  {len(summary.skipped_files)}  "
+            "(marketing mail / non-statement PDFs / empty statements)"
+        )
     if summary.archive_path:
         console.print(f"archive  {summary.archive_path}")
     for item in summary.failed:
         console.print(f"[red]failed   {item.path.name}: {item.error}[/red]")
-    if not summary.failed:
+    if not summary.failed and not summary.skipped_files:
         console.print("inbox    pdf=0  email=0  sms=0")

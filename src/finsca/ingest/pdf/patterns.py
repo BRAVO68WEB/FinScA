@@ -11,7 +11,11 @@ DATE = r"(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})"
 
 OPENING_RE = re.compile(rf"opening\s+balance[ \t]*[:\-]?[ \t]*{AMOUNT}", re.I)
 CLOSING_RE = re.compile(rf"closing\s+balance[ \t]*[:\-]?[ \t]*{AMOUNT}", re.I)
-LAST4_RE = re.compile(r"(?:a/?c|account)\s*(?:no\.?|number)?\s*[:\-]?\s*[Xx\d]*(\d{4})", re.I)
+LAST4_RE = re.compile(
+    r"(?:a/?c|acct|account|card)\s*(?:no\.?|number)?\s*[:\-]?\s*[Xx\d*]*(\d{4})",
+    re.I,
+)
+CARD_MASK_RE = re.compile(r"(?:\d{4,}[*X]{2,}|\bX{2,}[X\s*]*)(\d{4})\b", re.I)
 PERIOD_RE = re.compile(
     rf"(?:statement\s+(?:period|from)|period|from)\s*[:\-]?\s*{DATE}\s*(?:to|-)\s*[:\-]?\s*{DATE}",
     re.I,
@@ -42,7 +46,7 @@ def parse_indian_date(raw: str) -> date:
         year, month, day = (int(part) for part in text.split("-"))
         return date(year, month, day)
     if re.search(r"[A-Za-z]{3}", text):
-        for fmt in ("%d-%b-%Y", "%d-%b-%y", "%d %b %Y", "%B %d, %Y"):
+        for fmt in ("%d-%b-%Y", "%d-%b-%y", "%d %b %Y", "%d %b %y", "%B %d, %Y"):
             try:
                 return datetime.strptime(text, fmt).date()
             except ValueError:
@@ -68,6 +72,13 @@ def first_amount(pattern: re.Pattern[str], text: str) -> Decimal | None:
 
 def first_last4(text: str) -> str | None:
     match = LAST4_RE.search(text)
+    if match:
+        return match.group(1)
+    return card_last4(text)
+
+
+def card_last4(text: str) -> str | None:
+    match = CARD_MASK_RE.search(text.replace(" ", ""))
     return match.group(1) if match else None
 
 

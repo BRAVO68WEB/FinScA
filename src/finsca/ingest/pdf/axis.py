@@ -58,17 +58,20 @@ def _parse_lines(text: str) -> tuple[list[ParsedLine], list[str], Decimal | None
         date_s = dated.group(1)
         rest = row[len(date_s) :].strip()
         amounts = amounts_in(rest)
-        if len(amounts) < 2:
+        if not amounts:
             pending.append(row)
             continue
-        balance = amounts[-1]
         txn = amounts[0]
-        signed = -abs(txn) if running is not None and balance < running else abs(txn)
-        if running is not None and balance == running:
-            signed = Decimal("0.00")
+        if len(amounts) >= 2:
+            balance = amounts[-1]
+            signed = -abs(txn) if running is not None and balance < running else abs(txn)
+            if running is not None and balance == running:
+                signed = Decimal("0.00")
+            running = balance
+        else:
+            signed = _axis_sign(rest, txn)
         desc = " ".join([*pending, _narration(rest, amounts)])
         pending.clear()
-        running = balance
         rows.append(
             ParsedLine(
                 posted_at=posted_at(date_s),
@@ -78,6 +81,18 @@ def _parse_lines(text: str) -> tuple[list[ParsedLine], list[str], Decimal | None
             )
         )
     return rows, warnings, opening, closing
+
+
+_AXIS_CREDIT = re.compile(r"\b(refund|interest|salary|neft|rtgs|rev sweep|deposit)\b", re.I)
+_AXIS_DEBIT = re.compile(r"\b(upi|ecom|pos|atm|imps|nach|emi|rd/|brn-si)\b", re.I)
+
+
+def _axis_sign(rest: str, amount: Decimal) -> Decimal:
+    if _AXIS_DEBIT.search(rest):
+        return -abs(amount)
+    if _AXIS_CREDIT.search(rest):
+        return abs(amount)
+    return -abs(amount)
 
 
 def _narration(rest: str, amounts: list[Decimal]) -> str:

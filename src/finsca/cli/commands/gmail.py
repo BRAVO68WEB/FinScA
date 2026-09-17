@@ -54,6 +54,8 @@ def pull_cmd(
         raise typer.Exit(code=1) from exc
     console.print(f"query   {built}")
     console.print(
-        f"pulled  emails={result.emails}  pdfs={result.pdfs}  skipped={result.skipped}  → {settings.inbox_dir}"
+        f"pulled  emails={result.emails}  pdfs={result.pdfs}  "
+        f"skipped={result.skipped}  → {settings.inbox_dir}"
     )
+    console.print("pdfs includes backfill for .eml that had no attachments saved")
     console.print("run  finsca ingest")

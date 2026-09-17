@@ -61,6 +61,7 @@ def list_pending() -> None:
     console.print(
         f"{len(rows)} pending  —  finsca review apply ID income|transfer [--always --match TOKEN]"
     )
+    console.print("junk rows  —  finsca review delete ID [ID ...]")
 
 
 @app.command("link")
@@ -107,3 +108,27 @@ def apply_cmd(
     console.print(
         f"{choice.value}  {(updated.id or '')[:8]}  {format_inr(updated.amount)}  {updated.description_raw[:50]}"
     )
+
+
+@app.command("delete")
+def delete_cmd(
+    txns: list[str] = typer.Argument(..., help="id or unique prefix, one or more"),
+) -> None:
+    """Remove junk ledger rows (promo/HTML parse noise). Gone from review and cash-flow."""
+    deleted = 0
+    with db_session() as session:
+        for token in txns:
+            tx = resolve_transaction(session, token)
+            if tx is None or tx.id is None:
+                console.print(f"[red]not found or ambiguous: {token}[/red]")
+                raise typer.Exit(code=1)
+            gone = tx_repo.delete(session, tx.id)
+            if gone is None:
+                console.print(f"[red]not found: {token}[/red]")
+                raise typer.Exit(code=1)
+            console.print(
+                f"deleted  {(gone.id or '')[:8]}  {format_inr(gone.amount)}  {gone.description_raw[:50]}"
+            )
+            deleted += 1
+        left = len(tx_repo.list_pending_review(session))
+    console.print(f"removed {deleted}  pending {left}")
