@@ -24,8 +24,27 @@ def write_html(report: MonthReport, dest: Path) -> Path:
             f"<p>In {format_inr(flow.inflow)} / Out {format_inr(flow.outflow)} / "
             f"Net {format_inr(flow.net)} / Savings {rate}</p>"
             f"<p>Health {health} / unlabeled {report.unlabeled_share}</p>"
-            f"<table>{cats}</table></body></html>"
+            f"<table>{cats}</table>{_category_chart(report)}</body></html>"
         ),
         encoding="utf-8",
     )
     return dest
+
+
+def _category_chart(report: MonthReport) -> str:
+    if not report.categories:
+        return ""
+    try:
+        import plotly.graph_objects as go
+    except ImportError:
+        return ""
+    figure = go.Figure(
+        data=[
+            go.Bar(
+                x=[name for name, _amount in report.categories],
+                y=[float(amount) for _name, amount in report.categories],
+            )
+        ]
+    )
+    figure.update_layout(title="categories")
+    return figure.to_html(full_html=False, include_plotlyjs="cdn")

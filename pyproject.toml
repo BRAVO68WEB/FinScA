@@ -19,6 +19,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "pyyaml>=6.0",
     "pdfplumber>=0.11",
+    "plotext>=5.2,<6",
 ]
 
 [project.optional-dependencies]
@@ -32,6 +33,9 @@ gmail = [
     "google-auth-oauthlib>=1.2",
     "google-auth-httplib2>=0.2",
 ]
+reports = [
+    "plotly>=5.22",
+]
 
 [project.scripts]
 finsca = "finsca.cli.app:app"
@@ -41,7 +45,7 @@ include = ["/src", "/tests", "/README.md", "/PLAN.md", "/.env.example"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 
 [tool.ruff]
 line-length = 100

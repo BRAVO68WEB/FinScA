@@ -3,15 +3,18 @@ from __future__ import annotations
 from datetime import datetime
 
 import typer
-from rich.table import Table
 
-from finsca.cli.render import console
+from finsca.agents.context import IngestRunCtx, ReportInput
+from finsca.agents.registry import get
+from finsca.cli.render import bars, console
 from finsca.config.settings import Settings
 from finsca.core.money import format_inr
 from finsca.db.runtime import db_session
-from finsca.ledger.report import latest_month, report_for
+from finsca.ledger.report import latest_month
 from finsca.reports.export import write_html
+from finsca.reports.graphs import plot_bars
 from finsca.reports.monthly import MonthReport
+from finsca.reports.narrative import month_narrative
 
 app = typer.Typer(help="Monthly cash-flow and health report.")
 
@@ -33,8 +36,14 @@ def default(
                 console.print("no transactions yet")
                 raise typer.Exit(code=0)
             year, month_n = latest
-        report = report_for(session, year, month_n)
+        report = get("report").run(
+            IngestRunCtx(settings=settings, session=session),
+            ReportInput(year=year, month=month_n),
+        ).output.report
     _print(report)
+    paragraph = month_narrative(report)
+    if paragraph:
+        console.print(paragraph)
     if html:
         path = write_html(report, settings.reports_dir / f"{year:04d}-{month_n:02d}" / "report.html")
         console.print(f"html  {path}")
@@ -85,12 +94,8 @@ def _bars(title: str, rows: list[tuple[str, object]]) -> None:
     if not rows:
         console.print(f"{title}  (none)")
         return
-    table = Table(title=title)
-    table.add_column("name")
-    table.add_column("amount", justify="right")
-    table.add_column("bar")
-    peak = max((float(amount) for _, amount in rows), default=0) or 1
-    for name, amount in rows:
-        width = int(20 * float(amount) / peak)
-        table.add_row(name, format_inr(amount), "█" * width)
-    console.print(table)
+    drawn = plot_bars(title, rows)
+    if drawn:
+        console.print(drawn)
+        return
+    bars(title, rows)

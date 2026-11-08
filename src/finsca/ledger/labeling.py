@@ -11,9 +11,9 @@ from finsca.config.settings import Settings
 from finsca.config.taxonomy import Taxonomy, load_taxonomy
 from finsca.core.enums import Category, Intent, LabelSource
 from finsca.core.models import Transaction
+from finsca.db.repositories import labels as label_repo
 from finsca.db.repositories import rules as rule_repo
 from finsca.db.repositories import transactions as tx_repo
-from finsca.finance.labels import match_merchant
 from finsca.ledger.apply import resolve_transaction
 from finsca.llm.compact import suggest_labels
 from finsca.llm.router import compact_complete
@@ -40,13 +40,7 @@ def intent_for(category: Category) -> Intent:
 
 
 def decide(tx: Transaction, taxonomy: Taxonomy, session: Session) -> tuple[Category, LabelSource] | None:
-    rule = rule_repo.match(session, tx)
-    if rule and rule.category:
-        return rule.category, LabelSource.RULE
-    hit = match_merchant(tx.description_raw, taxonomy.merchants)
-    if hit:
-        return hit, LabelSource.TAXONOMY
-    return None
+    return label_repo.lookup(session, tx, taxonomy)
 
 
 def apply_labels(session: Session, settings: Settings | None = None, *, complete: CompleteFn | None = None) -> dict[str, int]:

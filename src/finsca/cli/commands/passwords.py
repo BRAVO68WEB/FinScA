@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import typer
-from rich.table import Table
 
-from finsca.cli.render import console
+from finsca.cli.render import console, money_table
 from finsca.config.passwords import add_password, load_store, mask, save_store, store_path
 from finsca.config.settings import Settings
 
@@ -24,13 +23,11 @@ def list_cmd() -> None:
         console.print(f"no passwords  —  {store_path(settings)}")
         console.print("finsca passwords add SECRET --match hdfc")
         return
-    table = Table(title=str(store_path(settings)))
-    table.add_column("#")
-    table.add_column("match")
-    table.add_column("password")
-    for index, item in enumerate(entries, start=1):
-        table.add_row(str(index), item.match or "*", mask(item.password))
-    console.print(table)
+    money_table(
+        str(store_path(settings)),
+        ["#", "match", "password"],
+        [(str(index), item.match or "*", mask(item.password)) for index, item in enumerate(entries, start=1)],
+    )
 
 
 @app.command("add")

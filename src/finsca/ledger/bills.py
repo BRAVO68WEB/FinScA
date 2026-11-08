@@ -25,7 +25,21 @@ def inject_cc_bills(session: Session) -> int:
         card = _card_account(session, hint)
         if card.id is None:
             continue
-        if not tx_repo.mark_self_transfer(session, tx.id, tx.id, new_id()):
+        credit, _created = tx_repo.add_event(
+            session,
+            Transaction(
+                account_id=card.id,
+                posted_at=tx.posted_at,
+                amount=abs(tx.amount),
+                description_raw=tx.description_raw,
+                source_kind=tx.source_kind,
+                channel=tx.channel,
+                value_date=tx.value_date,
+            ),
+        )
+        if credit.id is None or credit.id == tx.id:
+            continue
+        if not tx_repo.mark_self_transfer(session, tx.id, credit.id, new_id()):
             continue
         tx_repo.apply_review(
             session,

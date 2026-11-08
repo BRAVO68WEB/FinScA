@@ -2,8 +2,8 @@
 
 Living tracker. The design stays in [PLAN.md](PLAN.md). Update this file when a phase starts, lands, or is blocked.
 
-**Last updated:** 2026-09-13  
-**Current phase:** 8 — LLM router + ask (not started)  
+**Last updated:** 2026-11-08  
+**Current phase:** 8 — LLM router + ask (in progress on `gmail-api`)  
 **Last completed:** Phase 7 — Report
 
 ---
@@ -20,8 +20,8 @@ Living tracker. The design stays in [PLAN.md](PLAN.md). Update this file when a 
 | 5 | Labeling | **done** |
 | 6 | Loans / EMI | **done** |
 | 7 | Report | **done** |
-| 8 | LLM router + ask | not started |
-| 9 | Extra bank parsers + polish | not started |
+| 8 | LLM router + ask | in progress |
+| 9 | Extra bank parsers + polish | in progress |
 
 Exit criteria for each phase are in [PLAN.md §14](PLAN.md#14-implementation-phases-pr-sized).
 
@@ -220,7 +220,7 @@ Still to do:
 
 ## Later phases
 
-Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 9 until Phase 8’s exit works.
+Checklists stay in PLAN.md §14 until the phase is opened. On `gmail-api`, ask, the month narrative, SBI savings, ingest replay, and plotext bars are in the working tree. Phase 8 and 9 are not merged.
 
 ---
 
@@ -249,3 +249,13 @@ Checklists stay in PLAN.md §14 until the phase is opened. Do not start Phase 9 
 - Gmail API (readonly): `finsca gmail login|pull` writes .eml/PDF into the inbox.
 - PDF password store: `data/pdf_passwords.yaml` + `finsca passwords add`.
 - Injected bank-side CC bill pays (CRED / CC BillPay) as self-transfers onto credit_card accounts.
+- Realignment on `gmail-api`: ingest and report go through the agent registry; alert grammar is in `sms/templates.py`; label lookup is `db/repositories/labels.py`; `LLMRouter` picks Grok, OpenAI, or compact and redacts before send. `finsca ask`, graphs, the SBI savings parser, and ingest replay are still open.
+
+### 2026-11-08
+
+- CC bill pay now pairs the bank debit with a credit on the card account. A second inject does not add another row.
+- `finsca ingest --replay <run-id>` re-reads `data/archive` in place. Content hashes keep the second pass at zero new rows.
+- SBI savings statements parse as `sbi`. SBI CARD text still uses the card parser.
+- Unknown statements and unmatched alerts call the compact tier only when a provider is configured. `FINSCA_LLM_OFF` or a missing key leaves the old skip path.
+- Report bars use plotext, with the Rich table as a fallback. `pip install -e '.[reports]'` embeds a Plotly category bar in the HTML file.
+- `finsca ask` runs a four-call tool loop. An answer with no tool call prints `I do not know.` No provider prints `ask needs an API key`. The month report appends a narrative paragraph only when the reasoning tier returns one.

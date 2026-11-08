@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import typer
-from rich.table import Table
 
-from finsca.cli.render import console
+from finsca.cli.render import console, money_table
 from finsca.config.settings import Settings
 from finsca.core.enums import Category
 from finsca.core.money import format_inr
@@ -43,21 +42,21 @@ def list_pending() -> None:
     if not rows:
         console.print("no pending reviews")
         return
-    table = Table(title="Pending income reviews")
-    table.add_column("id")
-    table.add_column("date")
-    table.add_column("amount", justify="right")
-    table.add_column("account")
-    table.add_column("description")
-    for tx in rows:
-        table.add_row(
-            (tx.id or "")[:8],
-            tx.posted_at.date().isoformat(),
-            format_inr(tx.amount),
-            names.get(tx.account_id, tx.account_id[:8]),
-            tx.description_raw[:60],
-        )
-    console.print(table)
+    money_table(
+        "Pending income reviews",
+        ["id", "date", "amount", "account", "description"],
+        [
+            (
+                (tx.id or "")[:8],
+                tx.posted_at.date().isoformat(),
+                format_inr(tx.amount),
+                names.get(tx.account_id, tx.account_id[:8]),
+                tx.description_raw[:60],
+            )
+            for tx in rows
+        ],
+        right={"amount"},
+    )
     console.print(
         f"{len(rows)} pending  —  finsca review apply ID income|transfer [--always --match TOKEN]"
     )

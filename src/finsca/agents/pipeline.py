@@ -1,49 +1,80 @@
+"""Ingest order and error policy. Stage work lives in subagents."""
+
 from __future__ import annotations
 
 from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from finsca.archive.mover import archive_successes, planned_archive_dir, write_error_sidecar
+from finsca.agents.context import (
+    ArchiveInput,
+    IngestRunCtx,
+    NormalizeInput,
+    ParseInput,
+    PersistInput,
+    StageInput,
+)
+from finsca.agents.registry import get
+from finsca.archive.mover import planned_archive_dir, write_error_sidecar
 from finsca.config.settings import Settings
 from finsca.core.enums import IngestStatus, SourceKind
 from finsca.core.ids import file_sha256
 from finsca.db.repositories import ingest_runs
-from finsca.ingest.detect import list_inbox_files
-from finsca.ingest.dispatch import parse_inbox_file
-from finsca.ingest.errors import ParseError, SkipFile
 from finsca.db.repositories import transactions as tx_repo
-from finsca.ledger.apply import apply_rules, link_self_transfers
-from finsca.ledger.labeling import apply_labels
-from finsca.ledger.bills import inject_cc_bills
-from finsca.ledger.loans import match_all
-from finsca.ingest.persist import persist_batch
+from finsca.ingest.detect import list_archive_files, list_inbox_files
+from finsca.ingest.errors import ParseError, SkipFile
 from finsca.ingest.types import IngestFileResult, IngestSummary
+from finsca.ledger.apply import link_self_transfers
+from finsca.ledger.bills import inject_cc_bills
+
+_PARSE_AGENT = {
+    SourceKind.PDF: "ingest_pdf",
+    SourceKind.EMAIL: "ingest_email",
+    SourceKind.SMS: "ingest_sms",
+}
 
 
-def run_ingest(session: Session, settings: Settings) -> IngestSummary:
-    incoming = list_inbox_files(settings.inbox_dir)
+def run_replay(session: Session, settings: Settings, archive_dir: Path) -> IngestSummary:
+    """Re-parse an archive in place. Files stay where they are."""
+    return run_ingest(
+        session,
+        settings,
+        sources=list_archive_files(archive_dir),
+        archive_files=False,
+    )
+
+
+def run_ingest(
+    session: Session,
+    settings: Settings,
+    *,
+    sources: list[tuple[Path, SourceKind]] | None = None,
+    archive_files: bool = True,
+) -> IngestSummary:
+    incoming = list_inbox_files(settings.inbox_dir) if sources is None else sources
     if not incoming:
         return IngestSummary(empty=True)
 
     run = ingest_runs.start(session)
-    results = [
-        _ingest_one(session, path, kind, run.id, settings) for path, kind in incoming
-    ]
+    ctx = IngestRunCtx(settings=settings, session=session, run_id=run.id)
+    results = [_ingest_one(ctx, path, kind) for path, kind in incoming]
     successes = [item for item in results if item.error is None and not item.skipped]
     skipped = [item for item in results if item.skipped]
     failures = [item for item in results if item.error is not None]
     movable = [*successes, *skipped]
 
-    archive_path = planned_archive_dir(settings.archive_dir, run.id) if movable else None
+    archive_path = (
+        planned_archive_dir(settings.archive_dir, run.id) if archive_files and movable else None
+    )
     parsed = sum(item.tx_count for item in successes)
     dupes = sum(item.dupe_count for item in successes)
     linked = 0
     if successes:
+        get("normalize").run(ctx, NormalizeInput(inserted=parsed, dupes=dupes))
         linked = link_self_transfers(session, window_hours=settings.self_transfer_window_hours)
-        apply_rules(session)
-        apply_labels(session, settings)
-        match_all(session)
+        get("confirm").run(ctx, StageInput())
+        get("labeler").run(ctx, StageInput())
+        get("loans").run(ctx, StageInput())
         inject_cc_bills(session)
     pending = len(tx_repo.list_pending_review(session))
     status = _status(successes, failures)
@@ -63,9 +94,12 @@ def run_ingest(session: Session, settings: Settings) -> IngestSummary:
         ingest_runs.add_file(session, run.id, item)
     session.commit()
 
-    if movable and archive_path is not None:
-        archived = archive_successes(movable, archive_path, run.id)
-        by_name = {item.path.name: item for item in archived}
+    if archive_files and movable and archive_path is not None:
+        archived = get("archive").run(
+            ctx,
+            ArchiveInput(files=movable, dest=archive_path, run_id=run.id),
+        )
+        by_name = {item.path.name: item for item in archived.output.files}
         results = [
             by_name.get(item.path.name, item) if item.error is None else item for item in results
         ]
@@ -81,27 +115,24 @@ def run_ingest(session: Session, settings: Settings) -> IngestSummary:
     )
 
 
-def _ingest_one(
-    session: Session,
-    path: Path,
-    kind: SourceKind,
-    run_id: str,
-    settings,
-) -> IngestFileResult:
+def _ingest_one(ctx: IngestRunCtx, path: Path, kind: SourceKind) -> IngestFileResult:
     digest = file_sha256(path)
-    relpath = _relpath(path, settings.inbox_dir)
+    relpath = _relpath(path, ctx.settings.inbox_dir)
     try:
-        with session.begin_nested():
-            batch = parse_inbox_file(path, kind, settings)
-            persisted = persist_batch(session, batch, run_id)
-        warning = "; ".join(batch.warnings) if batch.warnings else None
+        with ctx.session.begin_nested():
+            parsed = get(_PARSE_AGENT[kind]).run(ctx, ParseInput(path=path, kind=kind))
+            saved = get("ledger").run(
+                ctx,
+                PersistInput(batch=parsed.output.batch, run_id=ctx.run_id or ""),
+            )
+        warning = "; ".join(parsed.output.batch.warnings) if parsed.output.batch.warnings else None
         return IngestFileResult(
             path=path,
             sha256=digest,
-            parser=batch.parser,
-            tx_count=persisted.inserted,
-            dupe_count=persisted.dupes,
-            pending_review=persisted.pending_review,
+            parser=parsed.output.batch.parser,
+            tx_count=saved.output.inserted,
+            dupe_count=saved.output.dupes,
+            pending_review=saved.output.pending_review,
             warning=warning,
             kind=kind,
             relpath=relpath,

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from finsca.ingest.detect import detect_bank, list_inbox_pdfs
+from finsca.core.enums import SourceKind
+from finsca.ingest.detect import detect_bank, list_archive_files, list_inbox_pdfs
 
 
 def test_detect_hdfc_from_header() -> None:
@@ -27,3 +28,13 @@ def test_list_inbox_pdfs_ignores_gitkeep(tmp_path: Path) -> None:
     (pdf / "notes.txt").write_text("nope")
     found = list_inbox_pdfs(inbox)
     assert [p.name for p in found] == ["stmt.pdf"]
+
+
+def test_list_archive_files_skips_manifest_and_sidecars(tmp_path: Path) -> None:
+    run = tmp_path / "2026-08-01_run_abc123"
+    (run / "pdf").mkdir(parents=True)
+    statement = run / "pdf" / "a.pdf"
+    statement.write_bytes(b"%PDF")
+    (run / "manifest.json").write_text("{}", encoding="utf-8")
+    (run / "pdf" / "a.pdf.error.json").write_text("{}", encoding="utf-8")
+    assert list_archive_files(run) == [(statement, SourceKind.PDF)]

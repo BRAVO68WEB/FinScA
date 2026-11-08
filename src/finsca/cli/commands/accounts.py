@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import typer
-from rich.table import Table
 from sqlalchemy.orm import Session
 
-from finsca.cli.render import console
+from finsca.cli.render import console, money_table
 from finsca.core.enums import AccountType, MonthSource
 from finsca.core.models import Account, AccountMonth
 from finsca.core.money import format_inr, parse_inr
@@ -57,23 +56,21 @@ def list_accounts() -> None:
     if not rows:
         console.print("no accounts yet")
         return
-    table = Table(title="Accounts")
-    table.add_column("id")
-    table.add_column("name")
-    table.add_column("type")
-    table.add_column("institution")
-    table.add_column("last4")
-    table.add_column("aliases")
-    for account in rows:
-        table.add_row(
-            (account.id or "")[:8],
-            account.display_name,
-            account.type.value,
-            account.institution or "",
-            account.last4 or "",
-            ", ".join(account.holder_aliases),
-        )
-    console.print(table)
+    money_table(
+        "Accounts",
+        ["id", "name", "type", "institution", "last4", "aliases"],
+        [
+            (
+                (account.id or "")[:8],
+                account.display_name,
+                account.type.value,
+                account.institution or "",
+                account.last4 or "",
+                ", ".join(account.holder_aliases),
+            )
+            for account in rows
+        ],
+    )
 
 
 @app.command("add")
@@ -143,21 +140,21 @@ def show_months(
     if not rows:
         console.print("no account months yet")
         return
-    table = Table(title="Account months")
-    table.add_column("account")
-    table.add_column("month")
-    table.add_column("opening", justify="right")
-    table.add_column("closing", justify="right")
-    table.add_column("source")
-    for row in rows:
-        table.add_row(
-            names.get(row.account_id, (row.account_id or "")[:8]),
-            f"{row.year:04d}-{row.month:02d}",
-            format_inr(row.opening),
-            format_inr(row.closing),
-            row.source.value,
-        )
-    console.print(table)
+    money_table(
+        "Account months",
+        ["account", "month", "opening", "closing", "source"],
+        [
+            (
+                names.get(row.account_id, (row.account_id or "")[:8]),
+                f"{row.year:04d}-{row.month:02d}",
+                format_inr(row.opening),
+                format_inr(row.closing),
+                row.source.value,
+            )
+            for row in rows
+        ],
+        right={"opening", "closing"},
+    )
 
 
 @app.command("set-month")

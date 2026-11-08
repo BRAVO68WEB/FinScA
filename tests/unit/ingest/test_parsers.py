@@ -46,6 +46,21 @@ def test_dispatch_picks_hdfc() -> None:
     assert len(batch.lines) == 2
 
 
+def test_sbi_savings_statement() -> None:
+    text = (FIXTURES / "sbi.txt").read_text()
+    batch = parse_statement(text, "sbi")
+    assert batch.parser == "sbi"
+    assert batch.account.institution == "SBI"
+    assert batch.account.last4 == "7781"
+    assert [line.amount for line in batch.lines] == [Decimal("-250.00"), Decimal("12500.00")]
+
+
+def test_sbi_card_does_not_use_the_savings_parser() -> None:
+    batch = parse_statement("SBI CARD\n01/08/2026 AMAZON 615.00 Dr\n", "sbi")
+    assert batch.parser == "sbi_card"
+    assert batch.lines[0].amount == Decimal("-615.00")
+
+
 def test_axis_parser_uses_running_balance() -> None:
     text = (FIXTURES / "axis.txt").read_text()
     batch = parse_statement(text, "axis")

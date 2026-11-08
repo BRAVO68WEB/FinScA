@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import typer
-from rich.table import Table
 
-from finsca.cli.render import console
+from finsca.cli.render import console, money_table
 from finsca.core.enums import AccountType, Intent
 from finsca.core.money import format_inr
 from finsca.db.repositories import accounts as account_repo
@@ -33,13 +32,15 @@ def list_bills() -> None:
     if not cards and not pays:
         console.print("no CC bills yet  —  finsca bills inject")
         return
-    table = Table(title="CC bill payments")
-    table.add_column("date")
-    table.add_column("amount", justify="right")
-    table.add_column("description")
-    for tx in pays:
-        table.add_row(tx.posted_at.date().isoformat(), format_inr(tx.amount), tx.description_raw[:70])
-    console.print(table)
+    money_table(
+        "CC bill payments",
+        ["date", "amount", "description"],
+        [
+            (tx.posted_at.date().isoformat(), format_inr(tx.amount), tx.description_raw[:70])
+            for tx in pays
+        ],
+        right={"amount"},
+    )
     console.print(f"{len(pays)} payments  across {len(cards)} card accounts")
 
 

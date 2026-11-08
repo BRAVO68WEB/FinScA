@@ -37,3 +37,11 @@ def test_inject_marks_cred_as_self_transfer(db_session: Session) -> None:
     cards = [item for item in account_repo.list_all(db_session) if item.type is AccountType.CREDIT_CARD]
     assert len(cards) == 1
     assert cards[0].institution == "CRED"
+    rows = tx_repo.list_all(db_session)
+    assert len(rows) == 2
+    credit = next(item for item in rows if item.account_id == cards[0].id)
+    assert credit.amount == Decimal("145899.06")
+    assert credit.intent is Intent.SELF_TRANSFER
+    assert credit.exclude_from_cashflow
+    assert credit.self_transfer_group_id == updated.self_transfer_group_id
+    assert credit.id != updated.id

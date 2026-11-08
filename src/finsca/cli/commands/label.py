@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import typer
-from rich.table import Table
 
-from finsca.cli.render import console
+from finsca.cli.render import console, money_table
 from finsca.config.settings import Settings
 from finsca.core.enums import Category
 from finsca.core.money import format_inr
@@ -64,21 +63,21 @@ def list_unlabeled() -> None:
     if not rows:
         console.print("no unlabeled transactions")
         return
-    table = Table(title="Unlabeled")
-    table.add_column("id")
-    table.add_column("date")
-    table.add_column("amount", justify="right")
-    table.add_column("account")
-    table.add_column("description")
-    for tx in rows[:50]:
-        table.add_row(
-            (tx.id or "")[:8],
-            tx.posted_at.date().isoformat(),
-            format_inr(tx.amount),
-            names.get(tx.account_id, tx.account_id[:8]),
-            tx.description_raw[:60],
-        )
-    console.print(table)
+    money_table(
+        "Unlabeled",
+        ["id", "date", "amount", "account", "description"],
+        [
+            (
+                (tx.id or "")[:8],
+                tx.posted_at.date().isoformat(),
+                format_inr(tx.amount),
+                names.get(tx.account_id, tx.account_id[:8]),
+                tx.description_raw[:60],
+            )
+            for tx in rows[:50]
+        ],
+        right={"amount"},
+    )
     extra = len(rows) - 50
     if extra > 0:
         console.print(f"… {extra} more")

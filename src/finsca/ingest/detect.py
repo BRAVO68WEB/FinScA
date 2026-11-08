@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from finsca.core.enums import SourceKind
@@ -32,6 +33,10 @@ _NAME_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("bob", ("bobcard",)),
 )
 
+_STATEMENTISH = re.compile(
+    r"(statement|estatement|e-statement|transaction history|credit card)",
+    re.I,
+)
 _INBOX: tuple[tuple[str, SourceKind, frozenset[str]], ...] = (
     ("pdf", SourceKind.PDF, frozenset({".pdf"})),
     ("email", SourceKind.EMAIL, frozenset({".eml", ".mbox", ".zip"})),
@@ -39,8 +44,27 @@ _INBOX: tuple[tuple[str, SourceKind, frozenset[str]], ...] = (
 )
 
 
+def looks_like_statement(text: str, filename: str = "") -> bool:
+    return bool(_STATEMENTISH.search(filename) or _STATEMENTISH.search(text[:2000]))
+
+
 def list_inbox_pdfs(inbox_dir: Path) -> list[Path]:
     return [path for path, kind in list_inbox_files(inbox_dir) if kind is SourceKind.PDF]
+
+
+def list_archive_files(archive_dir: Path) -> list[tuple[Path, SourceKind]]:
+    """Files already stored under an archive run. Skips the manifest and error sidecars."""
+    if not archive_dir.is_dir():
+        return []
+    found: list[tuple[Path, SourceKind]] = []
+    for path in sorted(archive_dir.rglob("*")):
+        if not path.is_file() or path.name == "manifest.json" or path.name.endswith(".error.json"):
+            continue
+        kind_name = path.parent.name
+        if kind_name not in {"pdf", "email", "sms"}:
+            continue
+        found.append((path, SourceKind(kind_name)))
+    return found
 
 
 def list_inbox_files(inbox_dir: Path) -> list[tuple[Path, SourceKind]]:
