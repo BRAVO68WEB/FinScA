@@ -5,12 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from finsca.core.enums import Category
+from finsca.llm.prompts.label import LABEL_SYSTEM
 from finsca.llm.redaction import redact
-
-_PROMPT = (
-    "Classify each transaction into exactly one category from the list. "
-    "Return JSON: {\"labels\": [{\"index\": 0, \"category\": \"dining\", \"confidence\": 0.9}]}"
-)
 
 
 @dataclass(frozen=True)
@@ -32,7 +28,7 @@ def suggest_labels(
     allowed = {item.value for item in categories}
     payload = complete(
         [
-            {"role": "system", "content": _PROMPT},
+            {"role": "system", "content": LABEL_SYSTEM},
             {
                 "role": "user",
                 "content": (

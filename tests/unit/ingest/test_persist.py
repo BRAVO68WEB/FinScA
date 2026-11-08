@@ -66,6 +66,40 @@ def test_persist_reuses_existing_account_and_dedupes(db_session: Session) -> Non
     assert len(tx_repo.list_for_account(db_session, existing.id)) == 2
 
 
+def test_credit_card_credits_skip_income_review(db_session: Session) -> None:
+    batch = ParsedBatch(
+        parser="icici_card",
+        account=AccountHint(
+            last4="0003",
+            institution="ICICI",
+            display_name="ICICI CC 0003",
+            account_type=AccountType.CREDIT_CARD,
+        ),
+        lines=[
+            ParsedLine(
+                posted_at=datetime(2026, 7, 22, tzinfo=timezone.utc),
+                amount=Decimal("7801.56"),
+                description="BBPS Payment received",
+                channel=Channel.OTHER,
+            ),
+            ParsedLine(
+                posted_at=datetime(2026, 7, 23, tzinfo=timezone.utc),
+                amount=Decimal("-500.00"),
+                description="SWIGGY",
+                channel=Channel.OTHER,
+            ),
+        ],
+    )
+    result = persist_batch(db_session, batch, run_id="run-cc")
+    assert result.inserted == 2
+    assert result.pending_review == 0
+    assert tx_repo.list_pending_review(db_session) == []
+    txs = tx_repo.list_for_account(db_session, account_repo.list_by_last4(db_session, "0003")[0].id)
+    credit = next(item for item in txs if item.amount > 0)
+    assert credit.intent.value == "transfer"
+    assert credit.exclude_from_cashflow
+
+
 def test_persist_requires_last4(db_session: Session) -> None:
     batch = _batch()
     batch.account.last4 = None

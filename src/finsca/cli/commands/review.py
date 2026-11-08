@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import typer
-from rich.table import Table
 
-from finsca.cli.render import console
+from finsca.cli.render import console, money_table
 from finsca.config.settings import Settings
 from finsca.core.enums import Category
 from finsca.core.money import format_inr
@@ -43,24 +42,25 @@ def list_pending() -> None:
     if not rows:
         console.print("no pending reviews")
         return
-    table = Table(title="Pending income reviews")
-    table.add_column("id")
-    table.add_column("date")
-    table.add_column("amount", justify="right")
-    table.add_column("account")
-    table.add_column("description")
-    for tx in rows:
-        table.add_row(
-            (tx.id or "")[:8],
-            tx.posted_at.date().isoformat(),
-            format_inr(tx.amount),
-            names.get(tx.account_id, tx.account_id[:8]),
-            tx.description_raw[:60],
-        )
-    console.print(table)
+    money_table(
+        "Pending income reviews",
+        ["id", "date", "amount", "account", "description"],
+        [
+            (
+                (tx.id or "")[:8],
+                tx.posted_at.date().isoformat(),
+                format_inr(tx.amount),
+                names.get(tx.account_id, tx.account_id[:8]),
+                tx.description_raw[:60],
+            )
+            for tx in rows
+        ],
+        right={"amount"},
+    )
     console.print(
         f"{len(rows)} pending  —  finsca review apply ID income|transfer [--always --match TOKEN]"
     )
+    console.print("junk rows  —  finsca review delete ID [ID ...]")
 
 
 @app.command("link")
@@ -107,3 +107,27 @@ def apply_cmd(
     console.print(
         f"{choice.value}  {(updated.id or '')[:8]}  {format_inr(updated.amount)}  {updated.description_raw[:50]}"
     )
+
+
+@app.command("delete")
+def delete_cmd(
+    txns: list[str] = typer.Argument(..., help="id or unique prefix, one or more"),
+) -> None:
+    """Remove junk ledger rows (promo/HTML parse noise). Gone from review and cash-flow."""
+    deleted = 0
+    with db_session() as session:
+        for token in txns:
+            tx = resolve_transaction(session, token)
+            if tx is None or tx.id is None:
+                console.print(f"[red]not found or ambiguous: {token}[/red]")
+                raise typer.Exit(code=1)
+            gone = tx_repo.delete(session, tx.id)
+            if gone is None:
+                console.print(f"[red]not found: {token}[/red]")
+                raise typer.Exit(code=1)
+            console.print(
+                f"deleted  {(gone.id or '')[:8]}  {format_inr(gone.amount)}  {gone.description_raw[:50]}"
+            )
+            deleted += 1
+        left = len(tx_repo.list_pending_review(session))
+    console.print(f"removed {deleted}  pending {left}")

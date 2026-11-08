@@ -11,6 +11,9 @@ from finsca.ingest.types import ParsedBatch, ParsedLine
 _DATED = re.compile(
     r"^(\d{2}-[A-Za-z]{3}-\d{4})\s+(\d{2}-[A-Za-z]{3}-\d{4})\s+(.*)$"
 )
+_DATED_SHORT = re.compile(
+    r"^(\d{2} [A-Za-z]{3} \d{2})\s+\d{2}:\d{2}\s+(\d{2} [A-Za-z]{3} \d{2})\s+(.*)$"
+)
 _SKIP = re.compile(
     r"^(statement of|customer |account |statement period|communication|"
     r"registered office|page \d+|transaction cheque|value date|date no|"
@@ -59,7 +62,7 @@ def _parse_lines(text: str, running: Decimal | None) -> tuple[list[ParsedLine], 
         row = raw.strip()
         if not row or _SKIP.match(row):
             continue
-        match = _DATED.match(row)
+        match = _DATED.match(row) or _DATED_SHORT.match(row)
         if match is None:
             if _NARR_START.match(row):
                 pending.append(row)

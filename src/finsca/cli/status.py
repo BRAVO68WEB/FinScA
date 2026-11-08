@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 
 from finsca.cli.render import console
 from finsca.config.settings import Settings
-from finsca.core.enums import IncomeReview
+from finsca.core.enums import AccountType, IncomeReview
 from finsca.db.runtime import db_session
-from finsca.db.schema import IngestRun, Transaction
+from finsca.db.schema import Account, IngestRun, Transaction
 
 INBOX_KINDS = ("pdf", "email", "sms")
 
@@ -36,7 +36,12 @@ def collect_status(settings: Settings, session: Session) -> StatusView:
     pending = session.scalar(
         select(func.count())
         .select_from(Transaction)
-        .where(Transaction.income_review == IncomeReview.PENDING.value)
+        .join(Account, Transaction.account_id == Account.id)
+        .where(
+            Transaction.income_review == IncomeReview.PENDING.value,
+            Transaction.amount_paise > 0,
+            Account.type != AccountType.CREDIT_CARD.value,
+        )
     ) or 0
     inbox = {
         kind: _inbox_count(settings.inbox_dir / kind) for kind in INBOX_KINDS

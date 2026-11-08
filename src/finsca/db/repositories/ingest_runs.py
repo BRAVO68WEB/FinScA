@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from finsca.core.clock import utcnow
@@ -9,6 +10,24 @@ from finsca.core.enums import IngestStatus
 from finsca.core.ids import new_id
 from finsca.db import schema as tables
 from finsca.ingest.types import IngestFileResult
+
+
+def find(session: Session, token: str) -> tables.IngestRun | None:
+    """Full id, or the 12-character prefix used in the archive folder name."""
+    needle = token.strip()
+    if not needle:
+        return None
+    exact = session.get(tables.IngestRun, needle)
+    if exact is not None:
+        return exact
+    hits: list[tables.IngestRun] = []
+    for row in session.scalars(select(tables.IngestRun)).all():
+        folder = Path(row.archive_path).name if row.archive_path else ""
+        if row.id.startswith(needle) or (folder and needle in folder):
+            hits.append(row)
+    if len(hits) == 1:
+        return hits[0]
+    return None
 
 
 def start(session: Session) -> tables.IngestRun:

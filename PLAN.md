@@ -107,7 +107,7 @@ If a file starts importing from three layers, it gets split.
 
 Package name: `finsca`. Python 3.11+. Hatchling via `pyproject.toml`. Entry point: `finsca = finsca.cli.app:app`.
 
-This tree is the **target** layout. Workspace currently holds only data folders and this plan — source modules are created when implementation starts.
+This tree is the **target** layout. Amendments below are part of that target: they are modules the implementation added and is keeping.
 
 ```
 FinScA/
@@ -200,7 +200,7 @@ FinScA/
 │   │   │   └── generic_llm.py     # last-resort table extract
 │   │   ├── email/
 │   │   │   ├── mailbox.py         # eml/mbox/takeout
-│   │   │   ├── gmail_api.py       # stubbed, unused until v1.1
+│   │   │   ├── gmail_api.py       # readonly OAuth pull into the inbox
 │   │   │   └── parsers.py         # bank alert / invoice / salary mail
 │   │   └── sms/
 │   │       ├── loaders.py         # xml / csv / json
@@ -233,6 +233,21 @@ FinScA/
 ```
 
 **Hard rule:** no file over ~300–400 lines without a split. Parsers, agents, and finance math never share a module.
+
+### Amendments (kept on purpose)
+
+These are not drift. `ledger/` is the write adapter the review passes extracted so subagents do not embed SQL. The others are the Gmail, password, card, and bill paths that landed after the first tree was drawn.
+
+- `cli/commands/gmail.py`, `passwords.py`, `bills.py`, and `cli/status.py`
+- `config/passwords.py`, `config/taxonomy.py`
+- `ingest/pdf/cards.py`, `header.py`, `patterns.py`, `idfc.py` (savings parsers stay one bank per file; cards share `cards.py`)
+- `ingest/email/gmail_decode.py`, `ingest/dispatch.py`, `ingest/persist.py`, `ingest/alerts.py`, `ingest/types.py`, `ingest/errors.py`
+- `ingest/sms/templates.py` holds the shared bank-alert grammar. `email/parsers.py` is the mail entry. `alerts.py` only builds the `ParsedBatch`
+- `ledger/` (`apply.py`, `labeling.py`, `loans.py`, `bills.py`, `report.py`) is the only write path for review, labels, loans, CC bill pays, and report assembly
+- `db/mapping.py`, `db/runtime.py`, `core/clock.py`
+- `finance/labels.py` (pure merchant match) and `finance/cc_bills.py` (pure bill-pay detect)
+
+`ingest/sms/parse.py` is not part of the target. Self-transfer pairing stays `finance/self_transfer.py` plus `ledger/apply.link_self_transfers`, called by the pipeline between normalize and confirm. There is no thirteenth subagent for it.
 
 ---
 
@@ -312,7 +327,7 @@ data/inbox/sms/*.{xml,csv,json}
 
 PDF parsers must extract **statement period + opening + closing** when the bank prints them. That is how `AccountMonth` stays honest.
 
-Gmail v1 is **offline files**. `ingest/email/gmail_api.py` exists as a sealed module (OAuth readonly) and is not wired until v1.1 so the first report does not depend on Google Cloud setup.
+Gmail is **readonly OAuth**. `finsca gmail login` + `finsca gmail pull` write `.eml` (and PDF attachments) into the inbox; `finsca ingest` is unchanged. Requires `pip install -e '.[gmail]'` and a desktop OAuth client JSON at `data/gmail_credentials.json`.
 
 ### 6.2 Accounts + monthly open/close
 

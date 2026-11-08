@@ -3,9 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import typer
-from rich.table import Table
 
-from finsca.cli.render import console
+from finsca.cli.render import console, money_table
 from finsca.core.enums import EmiStatus, LoanStatus
 from finsca.core.models import Loan
 from finsca.core.money import format_inr, parse_inr
@@ -30,27 +29,27 @@ def list_loans() -> None:
         if not rows:
             console.print("no loans yet")
             return
-        table = Table(title="Loans")
-        table.add_column("id")
-        table.add_column("name")
-        table.add_column("lender")
-        table.add_column("emi", justify="right")
-        table.add_column("day")
-        table.add_column("status")
-        table.add_column("last / next")
+        table_rows = []
         for loan in rows:
             occ = loan_repo.list_occurrences(session, loan.id or "")
             latest = occ[-1].status.value if occ else "-"
-            table.add_row(
-                (loan.id or "")[:8],
-                loan.name,
-                loan.lender,
-                format_inr(loan.emi),
-                str(loan.emi_day or "-"),
-                loan.status.value,
-                latest,
+            table_rows.append(
+                (
+                    (loan.id or "")[:8],
+                    loan.name,
+                    loan.lender,
+                    format_inr(loan.emi),
+                    str(loan.emi_day or "-"),
+                    loan.status.value,
+                    latest,
+                )
             )
-        console.print(table)
+        money_table(
+            "Loans",
+            ["id", "name", "lender", "emi", "day", "status", "last / next"],
+            table_rows,
+            right={"emi"},
+        )
 
 
 @app.command("add")

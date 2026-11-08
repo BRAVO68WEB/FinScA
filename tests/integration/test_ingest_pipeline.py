@@ -44,7 +44,7 @@ def test_ingest_keeps_ledger_if_archive_fails(data_dir: Path, monkeypatch) -> No
     def boom(*_args, **_kwargs):
         raise OSError("disk full")
 
-    monkeypatch.setattr("finsca.agents.pipeline.archive_successes", boom)
+    monkeypatch.setattr("finsca.agents.subagents.archive.archive_successes", boom)
     result = runner.invoke(app, ["ingest"])
     assert result.exit_code != 0
     assert pdf_path.exists()
@@ -65,6 +65,36 @@ def test_ingest_sms_after_pdf_does_not_double_count(data_dir: Path) -> None:
     assert not sms_dest.exists()
     months = runner.invoke(app, ["accounts", "months", "--account", "4521"])
     assert "22250.00" in months.output
+
+
+def test_replay_keeps_the_archive_and_inserts_nothing(data_dir: Path) -> None:
+    write_text_pdf(data_dir / "inbox" / "pdf" / "hdfc-aug.pdf", (FIXTURES / "hdfc.txt").read_text())
+    first = runner.invoke(app, ["ingest"])
+    assert first.exit_code == 0, first.output
+    run_id = _run_id(first.output)
+    archives = list((data_dir / "archive").glob("**/hdfc-aug.pdf"))
+    assert len(archives) == 1
+    replay = runner.invoke(app, ["ingest", "--replay", run_id[:12]])
+    assert replay.exit_code == 0, replay.output
+    assert "parsed   0" in replay.output
+    assert "dupes=2" in replay.output
+    assert archives[0].exists()
+    assert not (data_dir / "inbox" / "pdf" / "hdfc-aug.pdf").exists()
+    months = runner.invoke(app, ["accounts", "months", "--account", "4521"])
+    assert "22250.00" in months.output
+
+
+def test_replay_unknown_id_exits(data_dir: Path) -> None:
+    result = runner.invoke(app, ["ingest", "--replay", "missing-run"])
+    assert result.exit_code != 0
+    assert "archive not found" in result.output
+
+
+def _run_id(output: str) -> str:
+    for line in output.splitlines():
+        if line.startswith("run"):
+            return line.split()[-1]
+    raise AssertionError(output)
 
 
 def test_ingest_rejects_pdf_without_last4(data_dir: Path) -> None:

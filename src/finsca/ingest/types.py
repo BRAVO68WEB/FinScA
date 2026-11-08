@@ -46,6 +46,7 @@ class IngestFileResult(BaseModel):
     pending_review: int = 0
     warning: str | None = None
     error: str | None = None
+    skipped: bool = False
     archived_as: str | None = None
     kind: SourceKind | None = None
     relpath: str | None = None
@@ -63,7 +64,11 @@ class IngestSummary(BaseModel):
 
     @property
     def succeeded(self) -> list[IngestFileResult]:
-        return [item for item in self.files if item.error is None]
+        return [item for item in self.files if item.error is None and not item.skipped]
+
+    @property
+    def skipped_files(self) -> list[IngestFileResult]:
+        return [item for item in self.files if item.skipped]
 
     @property
     def failed(self) -> list[IngestFileResult]:

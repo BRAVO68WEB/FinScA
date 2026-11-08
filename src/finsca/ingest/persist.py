@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from finsca.core.enums import IncomeReview, Intent, MonthSource
+from finsca.core.enums import AccountType, IncomeReview, Intent, MonthSource
 from finsca.core.models import Account, AccountMonth, Transaction
 from finsca.db.repositories import accounts as account_repo
 from finsca.db.repositories import transactions as tx_repo
@@ -33,6 +33,7 @@ def persist_batch(session: Session, batch: ParsedBatch, run_id: str) -> PersistR
             raise RuntimeError("persisted account missing id")
         accounts[hint.last4 or ""] = account
         for line in lines:
+            card_credit = account.type is AccountType.CREDIT_CARD and line.amount > 0
             payload = Transaction(
                 account_id=account.id,
                 posted_at=line.posted_at,
@@ -41,13 +42,16 @@ def persist_batch(session: Session, batch: ParsedBatch, run_id: str) -> PersistR
                 channel=line.channel,
                 source_kind=batch.source_kind,
                 ingest_run_id=run_id,
-                intent=Intent.UNKNOWN,
-                income_review=IncomeReview.PENDING if line.amount > 0 else IncomeReview.SKIPPED,
+                intent=Intent.TRANSFER if card_credit else Intent.UNKNOWN,
+                income_review=IncomeReview.TRANSFER if card_credit else (
+                    IncomeReview.PENDING if line.amount > 0 else IncomeReview.SKIPPED
+                ),
+                exclude_from_cashflow=card_credit,
             )
             _, is_new = tx_repo.add_event(session, payload)
             if is_new:
                 inserted += 1
-                if line.amount > 0:
+                if line.amount > 0 and not card_credit:
                     pending += 1
             else:
                 dupes += 1
